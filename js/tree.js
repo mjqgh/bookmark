@@ -475,15 +475,46 @@ const Tree = {
                 try {
                     const urlObj = new URL(bookmark.url);
                     const domain = urlObj.hostname;
+                    const firstChar = (bookmark.title || domain).charAt(0).toUpperCase();
+
+                    // 多源 favicon fallback：DuckDuckGo → Google → 直连域名
+                    const faviconSources = [
+                        `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+                        `${urlObj.protocol}//${domain}/favicon.ico`
+                    ];
+
                     const fav = document.createElement('img');
                     fav.className = 'tree-bookmark-title-favicon';
                     fav.alt = '';
                     fav.loading = 'lazy';
-                    // 使用 DuckDuckGo 公共 favicon 服务，避免 ORB 跨域拦截
-                    fav.src = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-                    fav.onerror = () => { fav.style.display = 'none'; };
+
+                    // 逐级 fallback：每个源失败后尝试下一个，全部失败则显示首字母
+                    let srcIdx = 0;
+                    const tryNext = () => {
+                        if (srcIdx < faviconSources.length) {
+                            fav.src = faviconSources[srcIdx++];
+                        } else {
+                            // 所有源都失败了，显示首字母占位
+                            const fb = document.createElement('span');
+                            fb.className = 'tree-bookmark-title-favicon-fallback';
+                            fb.textContent = firstChar;
+                            titleWrap.insertBefore(fb, titleWrap.firstChild);
+                            fav.remove();
+                        }
+                    };
+                    fav.onerror = tryNext;
+                    tryNext();  // 开始尝试第一个源
+
                     titleWrap.appendChild(fav);
-                } catch (err) {}
+                } catch (err) {
+                    // URL 解析失败，直接用首字母
+                    const firstChar = (bookmark.title || '?').charAt(0).toUpperCase();
+                    const fb = document.createElement('span');
+                    fb.className = 'tree-bookmark-title-favicon-fallback';
+                    fb.textContent = firstChar;
+                    titleWrap.appendChild(fb);
+                }
 
                 const title = document.createElement('span');
                 title.className = 'tree-bookmark-title';

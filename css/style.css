@@ -509,6 +509,23 @@ body.resizing .resizer {
     object-fit: cover;
     background: #fff;
 }
+
+/* favicon 加载失败时的首字母占位 */
+.tree-bookmark-title-favicon-fallback {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    color: #666;
+    font-size: 9px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
 .tree-bookmark-title {
     font-size: 13px;
     color: #333;

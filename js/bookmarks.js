@@ -460,24 +460,37 @@ const Bookmarks = {
         });
         item.appendChild(handle);
         
-        // Favicon
+        // Favicon - 多源 fallback
         const favicon = document.createElement('div');
         favicon.className = 'bookmark-favicon';
         const domain = this.getDomain(bookmark.url);
-        const firstChar = bookmark.title.charAt(0).toUpperCase();
+        const firstChar = (bookmark.title || domain).charAt(0).toUpperCase();
+        const urlObj = (() => { try { return new URL(bookmark.url); } catch(e) { return null; } })();
         
-        const faviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+        const faviconSources = [
+            `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+            urlObj ? `${urlObj.protocol}//${domain}/favicon.ico` : null
+        ].filter(Boolean);
+        
         const img = document.createElement('img');
-        img.src = faviconUrl;
         img.alt = '';
-        img.onerror = () => {
-            favicon.innerHTML = firstChar;
+        let srcIdx = 0;
+        const tryNext = () => {
+            if (srcIdx < faviconSources.length) {
+                img.src = faviconSources[srcIdx++];
+            } else {
+                // 所有源都失败了，保留首字母占位
+                favicon.innerHTML = firstChar;
+            }
         };
+        img.onerror = tryNext;
         img.onload = () => {
             favicon.innerHTML = '';
             favicon.appendChild(img);
         };
         favicon.innerHTML = firstChar;
+        tryNext();
         
         // 信息
         const info = document.createElement('div');
