@@ -1,0 +1,1231 @@
+/* ==================== 基础样式 ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", 
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    color: #333;
+    background: #f5f5f5;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+/* ==================== 左侧边栏 ==================== */
+.sidebar {
+    width: 320px;
+    min-width: 200px;
+    max-width: 600px;
+    background: #fff;
+    border-right: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* ==================== 拖拽分割条 ==================== */
+.resizer {
+    width: 6px;
+    flex-shrink: 0;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.15s;
+    z-index: 10;
+}
+
+.resizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1px;
+    height: 100%;
+    background: #e0e0e0;
+    transition: width 0.15s, background 0.15s;
+}
+
+.resizer:hover::before,
+.resizer.active::before {
+    width: 3px;
+    background: #4a90d9;
+}
+
+.resizer:hover,
+.resizer.active {
+    background: rgba(74, 144, 217, 0.08);
+}
+
+/* 拖拽时禁止文字选中 */
+body.resizing {
+    user-select: none;
+    cursor: col-resize;
+}
+
+body.resizing * {
+    user-select: none;
+}
+
+body.resizing .resizer {
+    pointer-events: auto;
+}
+
+/* 拖拽时的反馈指示线 */
+.resizer-indicator {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #4a90d9;
+    pointer-events: none;
+    z-index: 9999;
+    box-shadow: 0 0 6px rgba(74, 144, 217, 0.6);
+    display: none;
+}
+
+.resizer-indicator.visible {
+    display: block;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #222;
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ==================== 按钮 ==================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    color: #555;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.btn-primary {
+    background: #4a90d9;
+    color: #fff;
+    border-color: #4a90d9;
+}
+
+.btn-primary:hover {
+    background: #3a7bc8;
+    border-color: #3a7bc8;
+}
+
+.btn-default {
+    background: #fff;
+    color: #555;
+}
+
+.btn-config,
+.btn-language {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+/* 手机端：在侧栏顶栏显示添加按钮 */
+.btn-add-bm-mobile,
+.btn-add-fd-mobile {
+    display: none;
+    padding: 6px 10px;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .btn-add-bm-mobile,
+    .btn-add-fd-mobile {
+        display: inline-flex;
+        background: #4a90d9;
+        color: #fff;
+        border-color: #4a90d9;
+        padding: 6px 10px;
+    }
+    .btn-add-bm-mobile:hover,
+    .btn-add-fd-mobile:hover {
+        background: #3a7bc8;
+        border-color: #3a7bc8;
+    }
+    .btn-add-fd-mobile {
+        background: #fff;
+        color: #555;
+        border-color: #ddd;
+    }
+    .btn-add-fd-mobile:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+        color: #555;
+    }
+}
+
+.btn-add-bookmark,
+.btn-add-folder {
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+.btn-add-bookmark {
+    background: #4a90d9;
+    color: #fff;
+    border-color: #4a90d9;
+}
+
+.btn-add-bookmark:hover {
+    background: #3a7bc8;
+}
+
+.btn-add-folder {
+    background: #fff;
+    color: #555;
+}
+
+.btn-more {
+    padding: 8px 12px;
+    font-size: 16px;
+}
+
+.btn .icon {
+    font-size: 14px;
+}
+
+/* ==================== 搜索框 ==================== */
+.search-container {
+    padding: 10px 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 14px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background: #f8f8f8;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.search-input:focus {
+    background: #fff;
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+/* ==================== 文件夹树 ==================== */
+.folder-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+    min-height: 0;
+}
+
+.tree-node {
+    user-select: none;
+}
+
+.tree-node-header {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px 4px 0;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+    border-radius: 0 4px 4px 0;
+    margin-right: 8px;
+    touch-action: none;  /* 防止移动端默认手势干扰文件夹拖拽 */
+}
+
+.tree-node-header:hover {
+    background: #f0f4f8;
+}
+
+.tree-node-header.selected {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+
+/* 展开/折叠箭头 */
+.tree-toggle {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #999;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+/* 文件夹拖拽手柄（与 .tree-toggle 同一 18px 位置，移动端显示） */
+.tree-node-drag {
+    width: 18px;
+    height: 18px;
+    display: none;  /* 默认隐藏，移动端显示 */
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #bbb;
+    flex-shrink: 0;
+    cursor: grab;
+    user-select: none;
+    line-height: 1;
+    touch-action: none;
+}
+
+.tree-node-drag:active {
+    cursor: grabbing;
+}
+
+.tree-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.tree-toggle.empty {
+    visibility: hidden;
+}
+
+/* 文件夹图标 */
+.tree-icon {
+    margin-right: 6px;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.tree-icon.folder {
+    color: #f5a623;
+}
+
+.tree-icon.folder-open {
+    color: #f5a623;
+}
+
+.tree-icon.bookmark {
+    color: #7ab3d9;
+}
+
+/* 文件夹名称 */
+.tree-label {
+    font-size: 13px;
+    color: #333;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-node-header.selected .tree-label {
+    color: #1a73e8;
+    font-weight: 500;
+}
+
+/* 右侧内联提示文案 - 默认隐藏，仅 hover/选中时显示 */
+.tree-node-meta {
+    font-size: 11px;
+    color: #aaa;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 8px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.tree-node-header:hover > .tree-node-meta,
+.tree-node-header.selected > .tree-node-meta {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ==================== 悬停效果（灰色竖线 + 提示文案） ==================== */
+/* 灰色竖线 - 仅在 hover 时显示 */
+.tree-node-header.has-children::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 0;
+    background: #bbb;
+    border-radius: 1px;
+    transition: height 0.2s ease;
+    pointer-events: none;
+}
+
+.tree-node-header.has-children:hover::before {
+    height: 20px;
+}
+
+/* 展开状态时竖线常显 */
+.tree-node-header.has-children.expanded::before {
+    height: 20px;
+    background: #4a90d9;
+}
+
+/* 灰色提示文案 - 浮层显示 */
+.tree-tooltip-float {
+    position: fixed;
+    background: #666;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tree-tooltip-float.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tree-tooltip-float::after {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-right-color: #666;
+    border-left: 0;
+}
+
+/* ==================== 子节点 ==================== */
+.tree-children {
+    display: none;
+    overflow: hidden;
+}
+
+.tree-children.expanded {
+    display: block;
+}
+
+.tree-children .tree-node {
+    padding-left: 18px;
+}
+
+/* ==================== 内联收藏项（移动端显示，桌面隐藏） ==================== */
+/* 默认：全局隐藏；在 @media(max-width:768px) 中改为 display:flex */
+.tree-bookmarks {
+    display: none;
+    flex-direction: column;
+    padding: 2px 0 8px;
+}
+
+/* 内联收藏项布局：精确镜像 .tree-node-header 的 toggle(18) + folder-icon(14,mr6) + label 结构 */
+.tree-bookmark-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px 4px 0;
+    margin-right: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.tree-bookmark-item:hover {
+    background: #f0f4f8;
+}
+.tree-bookmark-item:active {
+    background: #e8eef5;
+}
+.tree-bookmark-drag {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #bbb;
+    flex-shrink: 0;
+    cursor: grab;
+    user-select: none;
+    line-height: 1;
+    touch-action: none;  /* 防止移动端浏览器默认手势干扰拖拽 */
+}
+.tree-bookmark-drag:active {
+    cursor: grabbing;
+}
+/* 📄 文件图标：复用 .tree-icon 类（font-size:14 / margin-right:6px），与 📁 完全对齐 */
+.tree-bookmark-file-icon {
+    /* 继承 .tree-icon：margin-right:6px; font-size:14px; flex-shrink:0 */
+}
+/* 标题容器（里面放 小 favicon + 标题文字） */
+.tree-bookmark-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+/* 小 favicon（辅助识别网站），不参与对齐基线 */
+.tree-bookmark-title-favicon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    border-radius: 2px;
+    object-fit: cover;
+    background: #fff;
+}
+.tree-bookmark-title {
+    font-size: 13px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* 操作按钮组 - 默认隐藏，仅 hover/选中时显示 */
+.tree-bookmark-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.18s ease, visibility 0.18s ease;
+}
+.tree-bookmark-item:hover > .tree-bookmark-actions,
+.tree-bookmark-item.selected > .tree-bookmark-actions {
+    opacity: 1;
+    visibility: visible;
+}
+.tree-bm-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    padding: 0;
+}
+.tree-bm-btn:hover {
+    background: #eef3f9;
+}
+.tree-bm-btn.danger:hover {
+    background: #fee;
+}
+/* 拖拽状态样式 */
+.tree-bookmark-item.tree-bookmark-ghost {
+    opacity: 0.4;
+    background: #e8f0fe;
+}
+.tree-bookmark-item.tree-bookmark-chosen {
+    cursor: grabbing;
+    background: #f0f4f8;
+}
+.tree-bookmark-item.tree-bookmark-dragging {
+    opacity: 0.85;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    background: #fff;
+}
+
+/* ==================== 文件夹树空状态 ==================== */
+.tree-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.tree-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.tree-empty-text {
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 16px;
+}
+
+.tree-empty-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.tree-empty-actions .btn {
+    justify-content: center;
+    padding: 8px 14px;
+}
+
+/* ==================== 文件夹树拖拽样式 ==================== */
+.tree-node.tree-sortable-ghost {
+    opacity: 0.4;
+    background: #e8f0fe;
+}
+
+.tree-node-header.tree-sortable-chosen {
+    cursor: grabbing !important;
+    background: #f0f4f8;
+}
+
+.tree-node.tree-sortable-drag {
+    opacity: 0.85;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    background: #fff;
+    border-radius: 6px;
+}
+
+/* 拖拽时给文件夹头加 grab 光标 */
+.tree-node-header {
+    cursor: grab;
+}
+
+.tree-node-header:active {
+    cursor: grabbing;
+}
+
+/* ==================== 右侧主内容区 ==================== */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.current-folder-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #222;
+}
+
+.main-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* ==================== 收藏列表 ==================== */
+.bookmark-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+}
+
+.bookmark-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    gap: 12px;
+}
+
+.bookmark-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #ddd;
+}
+
+/* 拖拽手柄 */
+.drag-handle {
+    width: 24px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: #bbb;
+    flex-shrink: 0;
+    opacity: 0.3;
+    transition: opacity 0.2s, color 0.2s;
+    font-size: 12px;
+    line-height: 1;
+    user-select: none;
+}
+
+.bookmark-item:hover .drag-handle {
+    opacity: 1;
+}
+
+.drag-handle:hover {
+    color: #666;
+    opacity: 1;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Sortable.js 拖拽样式 */
+.bookmark-item.sortable-ghost {
+    opacity: 0.4;
+    background: #e8f0fe;
+    border-color: #4a90d9;
+}
+
+.bookmark-item.sortable-chosen {
+    cursor: grabbing;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.bookmark-item.sortable-drag {
+    opacity: 0.8;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.bookmark-favicon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.bookmark-favicon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bookmark-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.bookmark-title {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookmark-url {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookmark-folder-path {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #6699cc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookmark-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.bookmark-delete {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: #bbb;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bookmark-delete:hover {
+    background: #fee;
+    color: #e74c3c;
+}
+
+/* 空状态 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+    text-align: center;
+    padding: 40px;
+}
+
+.empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state .empty-text {
+    font-size: 14px;
+}
+
+/* ==================== 弹窗 ==================== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #222;
+}
+
+.modal-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #eee;
+}
+
+/* ==================== 表单 ==================== */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+}
+
+.text-input,
+.select-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.text-input:focus,
+.select-input:focus {
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+/* ==================== 配置弹窗 ==================== */
+.config-section {
+    margin-bottom: 24px;
+}
+
+.config-section:last-child {
+    margin-bottom: 0;
+}
+
+.config-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.config-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.url-import {
+    display: flex;
+    gap: 8px;
+}
+
+.url-import .text-input {
+    flex: 1;
+}
+
+.format-example {
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 12px;
+    color: #666;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ==================== 下拉菜单 ==================== */
+.dropdown-menu {
+    display: none;
+    position: fixed;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    padding: 6px 0;
+    min-width: 140px;
+    z-index: 2000;
+    border: 1px solid #eee;
+}
+
+.dropdown-menu.active {
+    display: block;
+}
+
+.menu-item {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.menu-item:hover {
+    background: #f5f5f5;
+}
+
+.menu-danger {
+    color: #e74c3c;
+}
+
+.menu-danger:hover {
+    background: #fee;
+}
+
+/* ==================== 右键菜单 ==================== */
+.context-menu {
+    display: none;
+    position: fixed;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    padding: 8px 0;
+    min-width: 200px;
+    z-index: 3000;
+    border: 1px solid #eee;
+    animation: contextMenuFadeIn 0.12s ease;
+}
+
+@keyframes contextMenuFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.context-menu.active {
+    display: block;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.12s;
+    user-select: none;
+}
+
+.context-menu-item:hover {
+    background: #f0f4f8;
+    color: #1a73e8;
+}
+
+.context-menu-item:active {
+    background: #e8f0fe;
+}
+
+.context-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 6px 0;
+}
+
+.context-menu-item.context-danger {
+    color: #e74c3c;
+}
+
+.context-menu-item.context-danger:hover {
+    background: #fee;
+    color: #e74c3c;
+}
+
+/* ==================== Toast 提示 ==================== */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 13px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+    z-index: 3000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-6px);
+}
+
+.toast.error {
+    background: #e74c3c;
+}
+
+.toast.success {
+    background: #27ae60;
+}
+
+/* ==================== 滚动条 ==================== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+/* ==================== 移动端内联收藏页样式（桌面端隐藏） ==================== */
+.tree-bookmarks {
+    display: none;
+}
+
+/* ==================== 响应式（移动端：仅展示左侧栏） ==================== */
+@media (max-width: 768px) {
+    .app {
+        flex-direction: row;
+    }
+
+    /* 移动端：隐藏右侧主内容区和 resizer，仅留左侧栏 */
+    .main,
+    .resizer {
+        display: none !important;
+    }
+
+    .sidebar {
+        width: 100% !important;
+        max-width: 100%;
+        min-width: 0;
+        height: 100vh;
+        max-height: 100vh;
+        border-right: none;
+    }
+
+    /* 左侧顶栏优化垂直空间 */
+    .sidebar-header {
+        padding: 12px 14px;
+        gap: 8px;
+    }
+    .sidebar-title {
+        font-size: 16px;
+    }
+    .sidebar-actions {
+        gap: 6px;
+    }
+    .sidebar-actions .btn {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    .search-container {
+        padding: 6px 12px 8px;
+    }
+    .search-input {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .folder-tree {
+        padding: 6px 8px 20px;
+    }
+    .tree-node-header {
+        padding: 10px 10px;
+    }
+    .tree-label {
+        font-size: 15px;
+    }
+
+    /* 移动端：文件夹显示拖拽手柄 ⋮⋮，隐藏展开/折叠箭头 ▶ */
+    .tree-toggle {
+        display: none !important;
+    }
+    .tree-node-drag {
+        display: flex !important;
+    }
+
+    /* 移动端显示内联收藏页（其余布局样式已定义在全局） */
+    .tree-bookmarks {
+        display: flex;
+    }
+    /* 移动端：操作按钮始终可见（触屏无 hover，按钮是唯一操作入口） */
+    .tree-bookmark-actions {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    /* 移动端略加大 item 高度，便于手指点击；与文件夹行的 padding:10px 10px 完全一致 */
+    .tree-bookmark-item {
+        padding: 10px 10px 10px 10px !important;
+    }
+    .tree-bookmark-title {
+        font-size: 15px;
+    }
+    .tree-empty-state {
+        padding: 30px 20px;
+    }
+}

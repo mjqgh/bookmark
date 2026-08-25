@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收藏夹 - 我的书签</title>
+    <link rel="stylesheet" href="css/style.css?v=13">
+</head>
+<body>
+    <div class="app">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="sidebar-title" data-i18n="favorites">收藏夹</h1>
+                <div class="sidebar-actions">
+                    <button class="btn btn-add-bm-mobile" id="btnAddBookmarkMobile" title="添加收藏页">☆</button>
+                    <button class="btn btn-add-fd-mobile" id="btnAddFolderMobile" title="添加收藏夹">📁</button>
+                    <button class="btn btn-config" id="btnConfig" data-i18n="config">配置</button>
+                    <button class="btn btn-language" id="btnLanguage" data-i18n="language">语言</button>
+                </div>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="搜索收藏夹">
+            </div>
+            
+            <nav class="folder-tree" id="folderTree">
+                <!-- 文件夹树由 JS 渲染 -->
+            </nav>
+        </aside>
+        
+        <!-- 拖拽分割条 -->
+        <div class="resizer" id="sidebarResizer" title="拖动调整宽度"></div>
+        
+        <!-- 右侧主内容区 -->
+        <main class="main">
+            <div class="main-header" id="mainHeader">
+                <h2 class="current-folder-title" id="currentFolderTitle">收藏夹</h2>
+                <div class="main-actions">
+                    <button class="btn btn-add-bookmark" id="btnAddBookmark">
+                        <span class="icon">☆</span>
+                        <span data-i18n="addBookmark">添加收藏页</span>
+                    </button>
+                    <button class="btn btn-add-folder" id="btnAddFolder">
+                        <span class="icon">📁</span>
+                        <span data-i18n="addFolder">添加收藏夹</span>
+                    </button>
+                    <button class="btn btn-more" id="btnMore">
+                        <span>···</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bookmark-list" id="bookmarkList">
+                <!-- 收藏列表由 JS 渲染 -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- 配置弹窗 -->
+    <div class="modal" id="configModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="configTitle">配置</h3>
+                <button class="modal-close" data-close="configModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="config-section">
+                    <h4 data-i18n="importSection">导入</h4>
+                    <div class="config-options">
+                        <button class="btn btn-primary" id="btnImportFile" data-i18n="importFile">从本地文件导入</button>
+                        <input type="file" id="importFileInput" accept=".txt" style="display:none">
+                        <div class="url-import">
+                            <input type="text" id="urlInput" class="text-input" data-i18n-placeholder="urlPlaceholder" placeholder="输入在线 txt 文件 URL">
+                            <button class="btn btn-primary" id="btnImportUrl" data-i18n="importUrl">从 URL 导入</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="config-section">
+                    <h4 data-i18n="exportSection">导出</h4>
+                    <button class="btn btn-primary" id="btnExport" data-i18n="export">导出为 txt 文件</button>
+                </div>
+                <div class="config-section">
+                    <h4 data-i18n="formatSection">文件格式说明</h4>
+                    <pre class="format-example">#工作类
+##在线工具
+###在线PS
+Photopea,https://www.photopea.com/</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加/编辑收藏弹窗 -->
+    <div class="modal" id="bookmarkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="bookmarkModalTitle" data-i18n="addBookmark">添加收藏页</h3>
+                <button class="modal-close" data-close="bookmarkModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="titleLabel">标题</label>
+                    <input type="text" id="bookmarkTitle" class="text-input" data-i18n-placeholder="titlePlaceholder" placeholder="输入收藏标题">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="urlLabel">URL</label>
+                    <input type="url" id="bookmarkUrl" class="text-input" data-i18n-placeholder="urlPlaceholder2" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="folderLabel">所属文件夹</label>
+                    <select id="bookmarkFolder" class="select-input"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-close="bookmarkModal" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" id="saveBookmark" data-i18n="save">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加/编辑文件夹弹窗 -->
+    <div class="modal" id="folderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="folderModalTitle" data-i18n="addFolder">添加收藏夹</h3>
+                <button class="modal-close" data-close="folderModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="folderNameLabel">文件夹名称</label>
+                    <input type="text" id="folderName" class="text-input" data-i18n-placeholder="folderNamePlaceholder" placeholder="输入文件夹名称">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="parentFolderLabel">父级文件夹</label>
+                    <select id="parentFolder" class="select-input">
+                        <option value="" data-i18n="rootFolder">根目录</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-close="folderModal" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" id="saveFolder" data-i18n="save">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 更多操作菜单 -->
+    <div class="dropdown-menu" id="moreMenu">
+        <div class="menu-item" id="btnEditFolder" data-i18n="editFolder">编辑文件夹</div>
+        <div class="menu-item menu-danger" id="btnDeleteFolder" data-i18n="deleteFolder">删除文件夹</div>
+    </div>
+    
+    <!-- 收藏右键菜单 -->
+    <div class="context-menu" id="bookmarkContextMenu">
+        <div class="context-menu-item" data-action="edit">
+            <span class="context-icon">✏️</span>
+            <span data-i18n="edit">编辑</span>
+        </div>
+        <div class="context-menu-item" data-action="copy-link">
+            <span class="context-icon">🔗</span>
+            <span data-i18n="copyLink">复制链接</span>
+        </div>
+        <div class="context-menu-item" data-action="move">
+            <span class="context-icon">↗️</span>
+            <span data-i18n="move">移动到...</span>
+        </div>
+        <div class="context-menu-item context-danger" data-action="delete">
+            <span class="context-icon">🗑️</span>
+            <span data-i18n="delete">删除</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="open-new-tab">
+            <span class="context-icon">📄</span>
+            <span data-i18n="openNewTab">在新标签页中打开</span>
+        </div>
+        <div class="context-menu-item" data-action="open-new-window">
+            <span class="context-icon">🪟</span>
+            <span data-i18n="openNewWindow">在新窗口中打开</span>
+        </div>
+        <div class="context-menu-item" data-action="open-inprivate-window">
+            <span class="context-icon">🕵️</span>
+            <span data-i18n="openInPrivateWindow">在 InPrivate 窗口中打开</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="create-bookmark-here">
+            <span class="context-icon">☆</span>
+            <span data-i18n="createBookmarkSameLevel">在此创建同级收藏页</span>
+        </div>
+        <div class="context-menu-item" data-action="create-folder-here">
+            <span class="context-icon">📁</span>
+            <span data-i18n="createFolderInCurrent">在此文件夹下创建收藏夹</span>
+        </div>
+    </div>
+
+    <!-- 文件夹树右键菜单 -->
+    <div class="context-menu" id="treeContextMenu">
+        <div class="context-menu-item" data-action="create-bookmark-here">
+            <span class="context-icon">☆</span>
+            <span data-i18n="createBookmarkHere">在此文件夹下创建收藏页</span>
+        </div>
+        <div class="context-menu-item" data-action="create-folder-here">
+            <span class="context-icon">📁</span>
+            <span data-i18n="createFolderHere">在此文件夹下创建收藏夹</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="edit">
+            <span class="context-icon">✏️</span>
+            <span data-i18n="editFolder">编辑收藏夹</span>
+        </div>
+        <div class="context-menu-item" data-action="delete-folder">
+            <span class="context-icon">🗑️</span>
+            <span data-i18n="deleteFolder">删除收藏夹</span>
+        </div>
+    </div>
+    
+    <!-- 移动收藏到文件夹弹窗 -->
+    <div class="modal" id="moveBookmarkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="moveBookmarkModalTitle" data-i18n="move">移动到...</h3>
+                <button class="modal-close" data-close="moveBookmarkModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="targetFolderLabel">目标文件夹</label>
+                    <select id="moveBookmarkFolder" class="select-input"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-close="moveBookmarkModal" data-i18n="cancel">取消</button>
+                <button class="btn btn-primary" id="confirmMoveBookmark" data-i18n="confirmMove">移动</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示消息 -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Sortable.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <!-- JavaScript 模块 -->
+    <script src="js/storage.js?v=3"></script>
+    <script src="js/tree.js?v=18"></script>
+    <script src="js/bookmarks.js?v=8"></script>
+    <script src="js/config.js?v=2"></script>
+    <script src="js/app.js?v=9"></script>
+</body>
+</html>
