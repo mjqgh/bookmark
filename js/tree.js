@@ -916,8 +916,6 @@ const Tree = {
                 handle: '.tree-node-drag',
                 draggable: '.tree-node',
                 forceFallback: true,
-                delay: 200,  // 延迟 200ms 才开始拖拽，区分点击与拖拽
-                delayOnTouchOnly: true,
                 ghostClass: 'tree-sortable-ghost',
                 chosenClass: 'tree-sortable-chosen',
                 dragClass: 'tree-sortable-drag',
