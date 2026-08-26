@@ -395,9 +395,13 @@ const Tree = {
             // 按住拖拽手柄 ⋮⋮ 时不弹出菜单（移动端长按会触发 contextmenu）
             if (e.target && e.target.closest('.tree-node-drag')) return;
             this.selectFolder(folder.id);
-            // 移动端：contextmenu 由长按触发，e.clientX/e.clientY 可能为 0,0，改用 header 位置
-            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-            if (isMobile) {
+            // 防止竞争条件：长按定时器已在 500ms 时设置了正确位置，contextmenu 可能随后触发
+            // 如果菜单已处于 active 状态（由定时器设置），跳过以避免用 (0,0) 覆盖位置
+            const menu = document.getElementById('treeContextMenu');
+            if (menu.classList.contains('active')) return;
+            // 移动端长按触发的 contextmenu 事件 e.clientX/e.clientY 通常为 0,0
+            // 用坐标有效性判断代替 matchMedia，更可靠
+            if (e.clientX === 0 && e.clientY === 0) {
                 const rect = header.getBoundingClientRect();
                 this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
             } else {
