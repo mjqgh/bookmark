@@ -321,6 +321,9 @@ const Tree = {
         dragHandle.className = 'tree-node-drag';
         dragHandle.innerHTML = '⋮⋮';
         dragHandle.title = '拖动排序';
+        // 阻止 touchstart/mousedown 冒泡到 header，避免按住 ⋮⋮ 时触发长按菜单
+        dragHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+        dragHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); });
         header.appendChild(dragHandle);
         
         // 文件夹图标
