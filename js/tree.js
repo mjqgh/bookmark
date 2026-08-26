@@ -392,61 +392,20 @@ const Tree = {
         header.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            // 按住拖拽手柄 ⋮⋮ 时不弹出菜单（移动端长按会触发 contextmenu）
+            if (e.target && e.target.closest('.tree-node-drag')) return;
             this.selectFolder(folder.id);
             this.showTreeContextMenu(e.clientX, e.clientY, folder.id);
         });
         
-        // 长按打开文件夹菜单（移动端）
+        // 长按打开文件夹菜单（移动端，非 contextmenu 的浏览器）
         let folderPressTimer = null;
-
-        // 在 header 上用事件捕获阶段设置标志，在 Sortable 的 touch 事件处理之前触发
-        // 这是关键：捕获阶段在目标阶段之前，即使 Sortable 调用 stopImmediatePropagation，标志已设置
-        const checkDragHandleCapture = (e) => {
-            if (e.target && e.target.closest('.tree-node-drag')) {
-                isOnDragHandle = true;
-                header.dataset.onDragHandle = '1';
-            }
-        };
-        header.addEventListener('touchstart', checkDragHandleCapture, { passive: true, capture: true });
-        header.addEventListener('mousedown', checkDragHandleCapture, true);
-
-        const resetDragFlagCapture = () => {
-            setTimeout(() => {
-                isOnDragHandle = false;
-                delete header.dataset.onDragHandle;
-            }, 600);
-        };
-        header.addEventListener('touchend', resetDragFlagCapture, true);
-        header.addEventListener('touchcancel', resetDragFlagCapture, true);
-        header.addEventListener('mouseup', resetDragFlagCapture, true);
-
         const startFolderPress = (ev) => {
-            // 如果 Sortable 正在拖拽，不触发长按菜单
             if (this.justDragged) return;
-            // 检查1：header 捕获阶段设置的 dataset 标志
-            if (header.dataset.onDragHandle === '1') return;
-            // 检查2：.tree-node-drag 上的 touchstart/mousedown 设置的标志
-            if (isOnDragHandle) return;
-            // 检查3：ev.target 是否在拖拽手柄内
+            // 按住拖拽手柄 ⋮⋮ 时不触发长按菜单
             if (ev.target && ev.target.closest('.tree-node-drag')) return;
-            // 检查4：用 elementFromPoint 检查触摸坐标对应的元素
-            let touchX, touchY;
-            if (ev.touches && ev.touches[0]) {
-                touchX = ev.touches[0].clientX;
-                touchY = ev.touches[0].clientY;
-            } else if (ev.clientX !== undefined) {
-                touchX = ev.clientX;
-                touchY = ev.clientY;
-            }
-            if (touchX !== undefined) {
-                const el = document.elementFromPoint(touchX, touchY);
-                if (el && el.closest('.tree-node-drag')) return;
-            }
-
             folderPressTimer = setTimeout(() => {
                 if (this.justDragged) return;
-                if (header.dataset.onDragHandle === '1') return;
-                if (isOnDragHandle) return;
                 const rect = header.getBoundingClientRect();
                 this.selectFolder(folder.id);
                 this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
