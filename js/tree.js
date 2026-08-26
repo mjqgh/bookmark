@@ -382,9 +382,11 @@ const Tree = {
         
         // 长按打开文件夹菜单（移动端）
         let folderPressTimer = null;
-        const startFolderPress = () => {
+        const startFolderPress = (ev) => {
             // 如果 Sortable 正在拖拽，不触发长按菜单
             if (this.justDragged) return;
+            // 按住拖拽手柄 ⋮⋮ 时不触发长按菜单，避免与拖拽冲突
+            if (ev.target && ev.target.closest('.tree-node-drag')) return;
             folderPressTimer = setTimeout(() => {
                 if (this.justDragged) return;
                 const rect = header.getBoundingClientRect();
@@ -537,6 +539,8 @@ const Tree = {
                 const startPress = (ev) => {
                     // 如果 Sortable 正在拖拽，不触发长按菜单
                     if (this.justDragged) return;
+                    // 按住拖拽手柄 ⋮⋮ 时不触发长按菜单，避免与拖拽冲突
+                    if (ev.target && ev.target.closest('.tree-bookmark-drag')) return;
                     longPressTimer = setTimeout(() => {
                         // 再次检查：拖拽过程中可能改变状态
                         if (this.justDragged) return;
