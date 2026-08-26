@@ -317,13 +317,26 @@ const Tree = {
         header.appendChild(toggle);
 
         // 拖拽手柄（移动端显示，与 .tree-toggle 同一 18px 位置）
+        let isOnDragHandle = false;  // 标志：当前是否按在拖拽手柄 ⋮⋮ 上
         const dragHandle = document.createElement('span');
         dragHandle.className = 'tree-node-drag';
         dragHandle.innerHTML = '⋮⋮';
         dragHandle.title = '拖动排序';
-        // 阻止 touchstart/mousedown 冒泡到 header，避免按住 ⋮⋮ 时触发长按菜单
-        dragHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
-        dragHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+        // 标志变量方案：按住 ⋮⋮ 时设置标志，阻止 header 的长按菜单触发
+        // 比 stopPropagation 更可靠，不受 Sortable 事件处理干扰
+        dragHandle.addEventListener('touchstart', () => {
+            isOnDragHandle = true;
+        }, { passive: true });
+        dragHandle.addEventListener('mousedown', () => {
+            isOnDragHandle = true;
+        });
+        const resetDragFlag = () => {
+            setTimeout(() => { isOnDragHandle = false; }, 600);
+        };
+        dragHandle.addEventListener('touchend', resetDragFlag);
+        dragHandle.addEventListener('touchcancel', resetDragFlag);
+        dragHandle.addEventListener('mouseup', resetDragFlag);
+        dragHandle.addEventListener('mouseleave', resetDragFlag);
         header.appendChild(dragHandle);
         
         // 文件夹图标
@@ -388,10 +401,13 @@ const Tree = {
         const startFolderPress = (ev) => {
             // 如果 Sortable 正在拖拽，不触发长按菜单
             if (this.justDragged) return;
-            // 按住拖拽手柄 ⋮⋮ 时不触发长按菜单，避免与拖拽冲突
+            // 如果按在拖拽手柄 ⋮⋮ 上，不触发长按菜单
+            if (isOnDragHandle) return;
+            // 双重检查：ev.target 是否在拖拽手柄内
             if (ev.target && ev.target.closest('.tree-node-drag')) return;
             folderPressTimer = setTimeout(() => {
                 if (this.justDragged) return;
+                if (isOnDragHandle) return;
                 const rect = header.getBoundingClientRect();
                 this.selectFolder(folder.id);
                 this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
