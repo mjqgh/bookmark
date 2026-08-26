@@ -395,7 +395,14 @@ const Tree = {
             // 按住拖拽手柄 ⋮⋮ 时不弹出菜单（移动端长按会触发 contextmenu）
             if (e.target && e.target.closest('.tree-node-drag')) return;
             this.selectFolder(folder.id);
-            this.showTreeContextMenu(e.clientX, e.clientY, folder.id);
+            // 移动端：contextmenu 由长按触发，e.clientX/e.clientY 可能为 0,0，改用 header 位置
+            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            if (isMobile) {
+                const rect = header.getBoundingClientRect();
+                this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
+            } else {
+                this.showTreeContextMenu(e.clientX, e.clientY, folder.id);
+            }
         });
         
         // 长按打开文件夹菜单（移动端，非 contextmenu 的浏览器）
