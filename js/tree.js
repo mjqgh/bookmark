@@ -388,38 +388,51 @@ const Tree = {
             this.selectFolder(folder.id);
         });
         
-        // 右键菜单
+        // 右键菜单：桌面端右键 / 移动端长按触发
         header.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 按住拖拽手柄 ⋮⋮ 时不弹出菜单（移动端长按会触发 contextmenu）
+            // 按住拖拽手柄 ⋮⋮ 时不弹出菜单
             if (e.target && e.target.closest('.tree-node-drag')) return;
-            this.selectFolder(folder.id);
-            // 防止竞争条件：长按定时器已在 500ms 时设置了正确位置，contextmenu 可能随后触发
-            // 如果菜单已处于 active 状态（由定时器设置），跳过以避免用 (0,0) 覆盖位置
-            const menu = document.getElementById('treeContextMenu');
-            if (menu.classList.contains('active')) return;
-            // 移动端长按触发的 contextmenu 事件 e.clientX/e.clientY 通常为 0,0
-            // 用坐标有效性判断代替 matchMedia，更可靠
-            if (e.clientX === 0 && e.clientY === 0) {
+            // 【先取坐标再 selectFolder】—— selectFolder 会触发 Tree.render() 销毁当前 header 元素，
+            // 如果放在前面调用，后面 getBoundingClientRect() 读到的全是 0，菜单就飞到左上角
+            // 优先用事件坐标（真·跟随手指）；没有则回退到元素位置
+            let x = e.clientX;
+            let y = e.clientY;
+            if (!x && !y) {
                 const rect = header.getBoundingClientRect();
-                this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
-            } else {
-                this.showTreeContextMenu(e.clientX, e.clientY, folder.id);
+                x = rect.left + 10;
+                y = rect.top + rect.height / 2;
             }
+            this.selectFolder(folder.id);
+            this.showTreeContextMenu(x, y, folder.id);
         });
         
-        // 长按打开文件夹菜单（移动端，非 contextmenu 的浏览器）
+        // 长按打开文件夹菜单（为不触发 contextmenu 的浏览器备用）
         let folderPressTimer = null;
+        let folderPressStartX = 0;
+        let folderPressStartY = 0;
         const startFolderPress = (ev) => {
             if (this.justDragged) return;
-            // 按住拖拽手柄 ⋮⋮ 时不触发长按菜单
             if (ev.target && ev.target.closest('.tree-node-drag')) return;
+            // 记录触摸/按下起点坐标，500ms 后作为菜单弹出位置（跟随手指）
+            const pt = (ev.touches && ev.touches[0]) || (ev.changedTouches && ev.changedTouches[0]) || ev;
+            folderPressStartX = pt.clientX || 0;
+            folderPressStartY = pt.clientY || 0;
             folderPressTimer = setTimeout(() => {
                 if (this.justDragged) return;
-                const rect = header.getBoundingClientRect();
+                // 先取坐标（header 还没被销毁），再做会触发 render 的操作
+                let x = folderPressStartX;
+                let y = folderPressStartY;
+                if (!x && !y) {
+                    const rect = header.getBoundingClientRect();
+                    x = rect.left + 10;
+                    y = rect.top + rect.height / 2;
+                }
                 this.selectFolder(folder.id);
-                this.showTreeContextMenu(rect.left + 10, rect.top + rect.height / 2, folder.id);
+                this.showTreeContextMenu(x, y, folder.id);
+                // 震动一下（有震动马达的真机）作为长按反馈
+                if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
             }, 500);
         };
         const cancelFolderPress = () => {
