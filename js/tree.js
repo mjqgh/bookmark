@@ -1158,6 +1158,13 @@ const Tree = {
     },
 
     /**
+     * 折叠所有文件夹
+     */
+    collapseAllFolders() {
+        this.expandedNodes.clear();
+    },
+
+    /**
      * 从导入数据重建树
      */
     rebuildTree(newFolders, newBookmarks) {

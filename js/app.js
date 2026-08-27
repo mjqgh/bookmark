@@ -297,7 +297,19 @@ const App = {
             Tree.search(query);
             Bookmarks.render();
         });
-        
+
+        // 全部展开 / 全部折叠
+        document.getElementById('btnExpandAll').addEventListener('click', () => {
+            Tree.expandAllFolders();
+            Tree.render();
+            App.showToast('已全部展开', 'info');
+        });
+        document.getElementById('btnCollapseAll').addEventListener('click', () => {
+            Tree.collapseAllFolders();
+            Tree.render();
+            App.showToast('已全部折叠', 'info');
+        });
+
         // 语言按钮
         document.getElementById('btnLanguage').addEventListener('click', () => {
             this.toggleLanguage();

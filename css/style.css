@@ -231,8 +231,15 @@ body.resizing .resizer {
     border-bottom: 1px solid #eee;
 }
 
+.search-container {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
 .search-input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 8px 14px;
     border: 1px solid #ddd;
     border-radius: 20px;
@@ -246,6 +253,34 @@ body.resizing .resizer {
     background: #fff;
     border-color: #4a90d9;
     box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+}
+
+.expand-toggle-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f8f8;
+    color: #666;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.expand-toggle-btn:hover {
+    background: #e8f0fe;
+    border-color: #4a90d9;
+    color: #1a73e8;
+}
+
+.expand-toggle-btn:active {
+    background: #d0e0fc;
 }
 
 /* ==================== 文件夹树 ==================== */
