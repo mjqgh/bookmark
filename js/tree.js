@@ -1013,13 +1013,10 @@ const Tree = {
             toChildren = this.data.folders;
         }
         
-        // 修正索引边界（同级移动且向上拖时索引需 -1）
-        let targetIndex = newIndex;
-        if (fromParentId === toParentId && folderIndex < newIndex) {
-            targetIndex = newIndex - 1;
-        }
-        targetIndex = Math.max(0, Math.min(targetIndex, toChildren.length));
-        
+        // 直接用 newIndex 作为目标索引
+        // 说明：代码先 splice 移除元素再插入，newIndex 是相对于拖动后 DOM 的索引，
+        // 移除后数组已对应 DOM 的剩余状态，所以不需要 -1 修正
+        const targetIndex = Math.max(0, Math.min(newIndex, toChildren.length));
         toChildren.splice(targetIndex, 0, moved);
         return true;
     },
