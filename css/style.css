@@ -283,12 +283,24 @@ body.resizing .resizer {
 
 /* 选中文件夹下所有子孙文件夹和收藏页显示浅色底色，
    让整个子树一眼可辨 */
+/* 子孙文件夹 header */
 .tree-node.selected > .tree-children .tree-node-header:not(.selected) {
     background: #f5f9ff;
 }
+/* 子孙文件夹 header hover 加深 */
+.tree-node.selected > .tree-children .tree-node-header:not(.selected):hover {
+    background: #eaf2fc;
+}
+/* 选中文件夹自己的直接收藏页（.tree-bookmarks 和 .tree-children 是同级，不在 children 里） */
+.tree-node.selected > .tree-bookmarks .tree-bookmark-item {
+    background: #f5f9ff;
+}
+/* 子孙文件夹内嵌套的收藏页 */
 .tree-node.selected > .tree-children .tree-bookmark-item {
     background: #f5f9ff;
 }
+/* 所有子收藏页 hover */
+.tree-node.selected > .tree-bookmarks .tree-bookmark-item:hover,
 .tree-node.selected > .tree-children .tree-bookmark-item:hover {
     background: #eaf2fc;
 }
