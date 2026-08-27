@@ -43,8 +43,11 @@ const Tree = {
             this.data.folders.forEach(f => this.expandedNodes.add(f.id));
         }
 
-        // 自动选择第一个有收藏的文件夹
-        if (this.data.folders.length > 0) {
+        // 恢复用户上次选中的文件夹，失败时默认选第一个有收藏的
+        const savedSelected = localStorage.getItem('tree_selected_folder_id');
+        if (savedSelected && this.findFolder(savedSelected)) {
+            this.selectedFolderId = savedSelected;
+        } else if (this.data.folders.length > 0) {
             const firstFolderWithBookmarks = this.findFirstFolderWithBookmarks();
             this.selectedFolderId = firstFolderWithBookmarks || this.data.folders[0].id;
         }
@@ -735,6 +738,7 @@ const Tree = {
      */
     selectFolder(folderId) {
         this.selectedFolderId = folderId;
+        localStorage.setItem('tree_selected_folder_id', folderId);
         this.render();
         this.onSelectFolder(folderId);
     },
