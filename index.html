@@ -208,9 +208,33 @@ Photopea,https://www.photopea.com/</pre>
             <span class="context-icon">✏️</span>
             <span data-i18n="editFolder">编辑收藏夹</span>
         </div>
+        <div class="context-menu-item" data-action="move-folder">
+            <span class="context-icon">↗️</span>
+            <span data-i18n="move">移动到...</span>
+        </div>
         <div class="context-menu-item" data-action="delete-folder">
             <span class="context-icon">🗑️</span>
             <span data-i18n="deleteFolder">删除收藏夹</span>
+        </div>
+    </div>
+    
+    <!-- 移动收藏夹弹窗 -->
+    <div class="modal" id="moveFolderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="moveFolderModalTitle">移动收藏夹到</h3>
+                <button class="modal-close" data-close="moveFolderModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>目标父文件夹</label>
+                    <select id="moveFolderParent" class="select-input"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-close="moveFolderModal">取消</button>
+                <button class="btn btn-primary" id="confirmMoveFolder">移动</button>
+            </div>
         </div>
     </div>
     
@@ -242,8 +266,8 @@ Photopea,https://www.photopea.com/</pre>
     
     <!-- JavaScript 模块 -->
     <script src="js/storage.js?v=3"></script>
-    <script src="js/tree.js?v=34"></script>
-    <script src="js/bookmarks.js?v=9"></script>
+    <script src="js/tree.js?v=35"></script>
+    <script src="js/bookmarks.js?v=10"></script>
     <script src="js/config.js?v=2"></script>
     <script src="js/app.js?v=9"></script>
 </body>

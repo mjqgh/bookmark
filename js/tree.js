@@ -70,9 +70,32 @@ const Tree = {
             const action = e.target.closest('.context-menu-item')?.dataset?.action;
             if (!action) return;
             
-            this.handleTreeContextMenuAction(action);
-            this.hideTreeContextMenu();
+            // move-folder 需要保留 contextMenuFolderId 给 confirmMoveFolder 使用
+            if (action === 'move-folder') {
+                this.handleTreeContextMenuAction(action);
+                document.getElementById('treeContextMenu').classList.remove('active');
+            } else {
+                this.handleTreeContextMenuAction(action);
+                this.hideTreeContextMenu();
+            }
         });
+        
+        // 确认移动文件夹按钮
+        const confirmMoveFolderBtn = document.getElementById('confirmMoveFolder');
+        if (confirmMoveFolderBtn) {
+            confirmMoveFolderBtn.addEventListener('click', () => {
+                const targetParentId = document.getElementById('moveFolderParent').value;
+                if (!targetParentId && targetParentId !== '') {
+                    App.showToast('请选择目标父文件夹', 'error');
+                    return;
+                }
+                const folderId = this.contextMenuFolderId;
+                if (folderId && this.moveFolderToParent(folderId, targetParentId)) {
+                    document.getElementById('moveFolderModal').classList.remove('active');
+                    this.contextMenuFolderId = null;
+                }
+            });
+        }
         
         // 全局：点击其他地方关闭文件夹右键菜单
         document.addEventListener('click', (e) => {
@@ -160,7 +183,92 @@ const Tree = {
                     App.showToast('文件夹已删除', 'success');
                 }
                 break;
+            case 'move-folder':
+                this.openMoveFolderModal(folderId);
+                break;
         }
+    },
+    
+    /**
+     * 打开"移动收藏夹"弹窗
+     */
+    openMoveFolderModal(folderId) {
+        const folder = this.findFolder(folderId);
+        if (!folder) return;
+        this.contextMenuFolderId = folderId;
+        
+        // 填充目标父文件夹下拉（排除自身和其子文件夹，避免循环）
+        const select = document.getElementById('moveFolderParent');
+        select.innerHTML = '';
+        const rootOpt = document.createElement('option');
+        rootOpt.value = '';
+        rootOpt.textContent = '（根目录）';
+        select.appendChild(rootOpt);
+        
+        const folderList = this.getFolderList().filter(f => {
+            return f.id !== folderId && !this.isDescendant(folderId, f.id);
+        });
+        folderList.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f.id;
+            opt.textContent = f.path;
+            select.appendChild(opt);
+        });
+        
+        // 预设当前父级
+        const currentParent = this.findParentFolder(folderId);
+        select.value = currentParent ? currentParent.id : '';
+        
+        document.getElementById('moveFolderModalTitle').textContent = `移动"${folder.name}"到`;
+        document.getElementById('moveFolderModal').classList.add('active');
+    },
+    
+    /**
+     * 执行移动收藏夹到父文件夹
+     */
+    moveFolderToParent(folderId, targetParentId) {
+        const folder = this.findFolder(folderId);
+        if (!folder) return false;
+        const currentParent = this.findParentFolder(folderId);
+        const currentParentId = currentParent ? currentParent.id : '';
+        
+        if (currentParentId === targetParentId) {
+            App.showToast('收藏夹已在该位置', 'info');
+            return false;
+        }
+        if (targetParentId && this.isDescendant(folderId, targetParentId)) {
+            App.showToast('不能将文件夹移动到其子文件夹内', 'error');
+            return false;
+        }
+        
+        const moved = this.moveFolderInData(folderId, currentParentId, targetParentId, 999);
+        if (!moved) {
+            App.showToast('移动失败', 'error');
+            return false;
+        }
+        
+        if (targetParentId) {
+            this.expandedNodes.add(targetParentId);
+        }
+        Storage.save(this.data);
+        this.render();
+        this.onUpdate();
+        App.showToast('已移动收藏夹', 'success');
+        return true;
+    },
+    
+    /**
+     * 查找某个文件夹的直接父级 folderId
+     */
+    findParentFolder(folderId, folders = this.data.folders, parent = null) {
+        for (const f of folders) {
+            if (f.id === folderId) return parent;
+            if (f.children && f.children.length) {
+                const found = this.findParentFolder(folderId, f.children, f);
+                if (found !== undefined) return found;
+            }
+        }
+        return undefined;
     },
     
     /**

@@ -126,8 +126,16 @@ const Bookmarks = {
             const action = e.target.closest('.context-menu-item')?.dataset?.action;
             if (!action) return;
             
+            // 先保存 bookmarkId（hideContextMenu 会清空它）
+            const savedBookmarkId = this.contextMenuBookmarkId;
             this.handleContextMenuAction(action);
-            this.hideContextMenu();
+            // move 动作需要保留 contextMenuBookmarkId 给 confirmMoveBookmark 使用
+            if (action !== 'move') {
+                this.hideContextMenu();
+            } else {
+                // 移动弹窗打开后才关闭菜单，但不清空 bookmarkId
+                document.getElementById('bookmarkContextMenu').classList.remove('active');
+            }
         });
         
         // 全局：点击其他地方关闭右键菜单
