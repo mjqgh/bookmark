@@ -281,11 +281,11 @@ body.resizing .resizer {
     color: #1a73e8;
 }
 
-/* 展开/折叠箭头 */
+/* 展开/折叠箭头（移动端隐藏，桌面端也隐藏以保持与 ⋮⋮ 同一位置；点击 header 其他区域可展开/折叠） */
 .tree-toggle {
     width: 18px;
     height: 18px;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     font-size: 10px;
@@ -294,11 +294,11 @@ body.resizing .resizer {
     transition: transform 0.2s;
 }
 
-/* 文件夹拖拽手柄（与 .tree-toggle 同一 18px 位置，移动端显示） */
+/* 文件夹拖拽手柄（与 .tree-toggle 同一 18px 位置，桌面端+移动端均显示） */
 .tree-node-drag {
     width: 18px;
     height: 18px;
-    display: none;  /* 默认隐藏，移动端显示 */
+    display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
