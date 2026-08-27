@@ -400,6 +400,9 @@ const Tree = {
         const node = document.createElement('div');
         node.className = 'tree-node';
         node.dataset.folderId = folder.id;
+        if (isSelected) {
+            node.classList.add('selected');
+        }
         
         // 节点头部
         const header = document.createElement('div');
