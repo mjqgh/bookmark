@@ -27,29 +27,26 @@ const Tree = {
         
         // 从 localStorage 恢复用户上次展开/折叠状态（移动端 / 桌面端 共用）
         const savedExpanded = localStorage.getItem('tree_expanded_ids');
-        if (savedExpanded) {
+        let userHasSavedState = false;
+        if (savedExpanded !== null) {
+            userHasSavedState = true;
             try {
                 JSON.parse(savedExpanded).forEach(id => this.expandedNodes.add(id));
             } catch (e) {
                 this.expandedNodes.clear();
+                userHasSavedState = false;
             }
         }
-        
-        // 默认只展开第一层（无论移动端还是桌面端）
+
+        // 默认只展开第一层（仅当用户从未保存过展开状态时）
+        if (!userHasSavedState && this.data.folders.length > 0) {
+            this.data.folders.forEach(f => this.expandedNodes.add(f.id));
+        }
+
+        // 自动选择第一个有收藏的文件夹
         if (this.data.folders.length > 0) {
-            // 如果用户此前从未展开过任何目录（expandedNodes 为空或无有效顶层节点），
-            // 则帮他展开第一层，避免第一屏空空如也
-            const anyTopExpanded = this.data.folders.some(f => this.expandedNodes.has(f.id));
-            if (!anyTopExpanded) {
-                this.data.folders.forEach(f => this.expandedNodes.add(f.id));
-            }
-            
-            // 自动选择第一个有收藏的文件夹
             const firstFolderWithBookmarks = this.findFirstFolderWithBookmarks();
             this.selectedFolderId = firstFolderWithBookmarks || this.data.folders[0].id;
-            
-            // 展开选中项的父级路径，让用户能看见它所在的位置
-            this.expandParentPath(this.selectedFolderId);
         }
         
         this.bindTreeEvents();
