@@ -281,6 +281,18 @@ body.resizing .resizer {
     color: #1a73e8;
 }
 
+/* 选中文件夹下所有子孙文件夹和收藏页显示浅色底色，
+   让整个子树一眼可辨 */
+.tree-node.selected > .tree-children .tree-node-header:not(.selected) {
+    background: #f5f9ff;
+}
+.tree-node.selected > .tree-children .tree-bookmark-item {
+    background: #f5f9ff;
+}
+.tree-node.selected > .tree-children .tree-bookmark-item:hover {
+    background: #eaf2fc;
+}
+
 /* 展开/折叠箭头（移动端隐藏，桌面端也隐藏以保持与 ⋮⋮ 同一位置；点击 header 其他区域可展开/折叠） */
 .tree-toggle {
     width: 18px;
