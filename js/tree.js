@@ -631,8 +631,10 @@ const Tree = {
                     const domain = urlObj.hostname;
                     const firstChar = (bookmark.title || domain).charAt(0).toUpperCase();
 
-                    // 多源 favicon fallback：DuckDuckGo → Google → 直连域名
+                    // 多源 favicon fallback：favicon.im → toolb.cn → DuckDuckGo → Google → 直连域名
                     const faviconSources = [
+                        `https://a.favicon.im/${domain}`,
+                        `https://toolb.cn/favicon/${domain}`,
                         `https://icons.duckduckgo.com/ip3/${domain}.ico`,
                         `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
                         `${urlObj.protocol}//${domain}/favicon.ico`
