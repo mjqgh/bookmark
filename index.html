@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=18">
+    <link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
     <div class="app">
@@ -15,6 +15,7 @@
                 <div class="sidebar-actions">
                     <button class="btn btn-add-bm-mobile" id="btnAddBookmarkMobile" title="添加收藏页">☆</button>
                     <button class="btn btn-add-fd-mobile" id="btnAddFolderMobile" title="添加收藏夹">📁</button>
+                    <button class="btn btn-trash" id="btnTrash" data-i18n="trash" title="回收站">🗑</button>
                     <button class="btn btn-config" id="btnConfig" data-i18n="config">配置</button>
                     <button class="btn btn-language" id="btnLanguage" data-i18n="language">语言</button>
                 </div>
@@ -25,7 +26,10 @@
                 <button class="expand-toggle-btn" id="btnExpandAll" title="全部展开" data-i18n="expandAll">⊞</button>
                 <button class="expand-toggle-btn" id="btnCollapseAll" title="全部折叠" data-i18n="collapseAll">⊟</button>
             </div>
-            
+
+            <!-- 移动端面包屑：当前路径导航（桌面端隐藏） -->
+            <div class="mobile-breadcrumb" id="mobileBreadcrumb"></div>
+
             <nav class="folder-tree" id="folderTree">
                 <!-- 文件夹树由 JS 渲染 -->
             </nav>
@@ -71,7 +75,7 @@
                     <h4 data-i18n="importSection">导入</h4>
                     <div class="config-options">
                         <button class="btn btn-primary" id="btnImportFile" data-i18n="importFile">从本地文件导入</button>
-                        <input type="file" id="importFileInput" accept=".txt" style="display:none">
+                        <input type="file" id="importFileInput" accept=".txt,.html,.htm" style="display:none">
                         <div class="url-import">
                             <input type="text" id="urlInput" class="text-input" data-i18n-placeholder="urlPlaceholder" placeholder="输入在线 txt 文件 URL">
                             <button class="btn btn-primary" id="btnImportUrl" data-i18n="importUrl">从 URL 导入</button>
@@ -260,17 +264,39 @@ Photopea,https://www.photopea.com/</pre>
         </div>
     </div>
     
+    <!-- 移动端浮动按钮：回到当前选中文件夹 -->
+    <button class="float-go-btn" id="btnGoCurrentFolder" title="回到当前收藏夹">📍</button>
+
     <!-- 提示消息 -->
     <div class="toast" id="toast"></div>
-    
+
+    <!-- 回收站弹窗 -->
+    <div class="modal" id="trashModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="trashTitle">回收站</h3>
+                <button class="modal-close" data-close="trashModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="trash-hint" data-i18n="trashHint">回收站中的内容保留 30 天，之后自动清除</div>
+                <div class="trash-list" id="trashList"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-close="trashModal" data-i18n="cancel">取消</button>
+                <button class="btn btn-purge" id="btnEmptyTrash" data-i18n="emptyTrash">清空回收站</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sortable.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    
+
     <!-- JavaScript 模块 -->
     <script src="js/storage.js?v=3"></script>
     <script src="js/tree.js?v=40"></script>
     <script src="js/bookmarks.js?v=11"></script>
-    <script src="js/config.js?v=2"></script>
-    <script src="js/app.js?v=10"></script>
+    <script src="js/config.js?v=3"></script>
+    <script src="js/trash.js?v=1"></script>
+    <script src="js/app.js?v=12"></script>
 </body>
 </html>

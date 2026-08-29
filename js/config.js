@@ -162,12 +162,14 @@ const Config = {
     },
     
     /**
-     * 处理导入内容
+     * 处理导入内容（自动识别 txt 备份 / Chrome·Edge bookmarks.html）
      */
     processImport(content) {
         try {
-            const result = this.parseData(content);
-            
+            const result = this.isBookmarkHtml(content)
+                ? this.parseBookmarksHtml(content)
+                : this.parseData(content);
+
             if (!result.folders || result.folders.length === 0) {
                 App.showToast('导入失败：未找到有效的文件夹数据', 'error');
                 return;
@@ -286,6 +288,102 @@ const Config = {
             folders: rootFolders,
             bookmarks: bookmarkList
         };
+    },
+
+    /**
+     * 检测内容是否为浏览器导出的 bookmarks.html
+     */
+    isBookmarkHtml(content) {
+        const head = content.slice(0, 2000);
+        return /<!DOCTYPE\s+NETSCAPE-Bookmark-file-1>/i.test(head)
+            || (/<!doctype html>/i.test(head) && /<a\s[^>]*href=/i.test(content));
+    },
+
+    /**
+     * 解析 Chrome / Edge 导出的 bookmarks.html
+     * 结构：<DL><p><DT><H3>文件夹名</H3><DL>…</DL><DT><A HREF="…">标题</A>…</DL>
+     */
+    parseBookmarksHtml(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const rootDl = doc.querySelector('dl');
+        if (!rootDl) {
+            throw new Error('不是有效的 bookmarks.html 文件');
+        }
+
+        const folders = [];
+        const bookmarks = [];
+
+        const walk = (dl, children, fallbackFolderId) => {
+            Array.from(dl.children).forEach(el => {
+                if (el.tagName !== 'DT') return; // <p> 等分隔标签跳过
+
+                const h3 = el.querySelector(':scope > h3');
+                const a = el.querySelector(':scope > a');
+                const subDl = el.querySelector(':scope > dl');
+
+                if (h3) {
+                    // 文件夹节点
+                    const folder = {
+                        id: Storage.generateId('folder'),
+                        name: (h3.textContent || '').trim() || '未命名',
+                        children: []
+                    };
+                    children.push(folder);
+                    if (subDl) walk(subDl, folder.children, folder.id);
+                } else if (a) {
+                    // 收藏节点
+                    const url = a.getAttribute('href') || '';
+                    const title = (a.textContent || '').trim() || url;
+                    // 只导入 http(s) 链接，跳过 javascript:/place:/chrome:// 等特殊协议
+                    if (/^https?:/i.test(url)) {
+                        bookmarks.push({
+                            id: Storage.generateId('bookmark'),
+                            folderId: fallbackFolderId,
+                            title: title,
+                            url: url
+                        });
+                    }
+                } else if (subDl) {
+                    // 无标题的裸 DL（个别浏览器格式）继续递归
+                    walk(subDl, children, fallbackFolderId);
+                }
+            });
+        };
+
+        // Chrome/Edge 顶层 DL 的直接子级通常是"书签栏/其他书签"等 H3；
+        // 若存在直接挂在顶层的 A 收藏，归入第一个根文件夹
+        walk(rootDl, folders, null);
+
+        // 顶层散落的收藏 → 归入第一个根文件夹（保证 folderId 有效）
+        if (bookmarks.length > 0 && folders.length > 0) {
+            const firstId = folders[0].id;
+            bookmarks.forEach(b => { if (!b.folderId) b.folderId = firstId; });
+        }
+
+        // 清理空文件夹（递归删除没有子文件夹且没有收藏的节点）
+        const pruneEmpty = (list) => {
+            return list.filter(f => {
+                if (f.children && f.children.length) {
+                    f.children = pruneEmpty(f.children);
+                }
+                const hasBm = bookmarks.some(b => b.folderId === f.id);
+                return hasBm || (f.children && f.children.length > 0);
+            });
+        };
+        const prunedFolders = pruneEmpty(folders);
+
+        if (prunedFolders.length === 0 && bookmarks.length > 0) {
+            // 没有任何文件夹但存在收藏 → 建一个默认根文件夹
+            const defaultFolder = {
+                id: Storage.generateId('folder'),
+                name: '导入的书签',
+                children: []
+            };
+            bookmarks.forEach(b => { b.folderId = defaultFolder.id; });
+            prunedFolders.push(defaultFolder);
+        }
+
+        return { folders: prunedFolders, bookmarks };
     },
     
     /**

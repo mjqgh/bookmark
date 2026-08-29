@@ -38,6 +38,12 @@ const Bookmarks = {
                 this.justDragged = true;
             },
             onEnd: (evt) => {
+                // 跨栏拖拽：收藏被拖到左侧文件夹上时，drop 处理器已重渲染列表，
+                // 此时元素已脱离 DOM，跳过保存（避免把排序写乱）
+                if (evt.item && !evt.item.isConnected) {
+                    setTimeout(() => { this.justDragged = false; }, 300);
+                    return;
+                }
                 // 保存新排序
                 this.saveOrderAfterDrag(evt.oldIndex, evt.newIndex);
                 // 延迟重置，防止 click 事件触发打开链接
@@ -347,6 +353,10 @@ const Bookmarks = {
         const isSearchMode = !!searchQuery;
         
         if (isSearchMode) {
+            // 【P0 修复】搜索结果是跨文件夹的混合列表，与 folderOrder 索引不对应，
+            // 拖拽排序会把"当前选中文件夹"的排序数据写乱 —— 必须禁用
+            if (this.sortable) this.sortable.option('disabled', true);
+            
             // 全库搜索：标题或 URL 包含关键词
             const matches = this.data.bookmarks.filter(b =>
                 b.title.toLowerCase().includes(searchQuery) ||
@@ -367,14 +377,16 @@ const Bookmarks = {
             
             list.innerHTML = '';
             matches.forEach(bookmark => {
-                const folderPath = this.getFolderPathText(bookmark.folderId);
+                const folderPath = Tree.getFolderPath(bookmark.folderId) || [];
                 const item = this.createBookmarkItem(bookmark, folderPath);
                 list.appendChild(item);
             });
             return;
         }
         
-        // 无搜索：按当前选中文件夹展示
+        // 无搜索：按当前选中文件夹展示（恢复拖拽排序能力）
+        if (this.sortable) this.sortable.option('disabled', false);
+        
         if (!this.currentFolderId) {
             title.textContent = '收藏夹';
             list.innerHTML = '<div class="empty-state"><div class="empty-text">请从左侧选择一个收藏夹</div></div>';
@@ -408,25 +420,6 @@ const Bookmarks = {
     },
     
     /**
-     * 获取文件夹路径（根/父/子）用于搜索结果标注
-     */
-    getFolderPathText(folderId) {
-        if (!folderId) return '';
-        // 找到目标父路径数组（从顶层到该文件夹）
-        const foundPath = [];
-        const walk = (folders, path) => {
-            for (const f of folders) {
-                const newPath = [...path, f.name];
-                if (f.id === folderId) { foundPath.push(...newPath); return true; }
-                if (f.children && walk(f.children, newPath)) return true;
-            }
-            return false;
-        };
-        walk(this.data.folders, []);
-        return foundPath.join(' / ');
-    },
-    
-    /**
      * 获取排序后的收藏
      */
     getOrderedBookmarks(folderId) {
@@ -449,8 +442,9 @@ const Bookmarks = {
     
     /**
      * 创建收藏项 DOM
+     * @param folderPathSegments 搜索模式下传入文件夹路径 [{id,name}]，路径可点击跳转
      */
-    createBookmarkItem(bookmark, folderPath = null) {
+    createBookmarkItem(bookmark, folderPathSegments = null) {
         const item = document.createElement('div');
         item.className = 'bookmark-item';
         item.dataset.bookmarkId = bookmark.id;
@@ -472,8 +466,13 @@ const Bookmarks = {
         const favicon = document.createElement('div');
         favicon.className = 'bookmark-favicon';
         const domain = this.getDomain(bookmark.url);
-        const firstChar = (bookmark.title || domain).charAt(0).toUpperCase();
+        const firstChar = (bookmark.title || domain || '?').charAt(0).toUpperCase();
         const urlObj = (() => { try { return new URL(bookmark.url); } catch(e) { return null; } })();
+        
+        // 首字母方块的固定色：按域名哈希，同一网站永远同一颜色
+        const letterBg = `hsl(${this.hashHue(domain || bookmark.title || '?')}, 62%, 50%)`;
+        favicon.style.background = letterBg;
+        favicon.style.color = '#fff';
         
         const faviconSources = [
             `https://a.favicon.im/${domain}`,
@@ -490,7 +489,7 @@ const Bookmarks = {
             if (srcIdx < faviconSources.length) {
                 img.src = faviconSources[srcIdx++];
             } else {
-                // 所有源都失败了，保留首字母占位
+                // 所有源都失败了，保留首字母占位（固定哈希色）
                 favicon.innerHTML = firstChar;
             }
         };
@@ -519,11 +518,25 @@ const Bookmarks = {
         info.appendChild(title);
         info.appendChild(url);
         
-        // 搜索结果标注所属文件夹路径
-        if (folderPath) {
+        // 搜索结果标注所属文件夹路径（每段可点击跳转到对应文件夹）
+        if (folderPathSegments && folderPathSegments.length) {
             const path = document.createElement('div');
             path.className = 'bookmark-folder-path';
-            path.textContent = '📁 ' + folderPath;
+            path.appendChild(document.createTextNode('📁 '));
+            folderPathSegments.forEach((seg, i) => {
+                if (i > 0) path.appendChild(document.createTextNode(' / '));
+                const s = document.createElement('span');
+                s.className = 'folder-path-seg';
+                s.textContent = seg.name;
+                s.dataset.folderId = seg.id;
+                s.title = '点击打开该文件夹';
+                s.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.jumpToFolder(seg.id);
+                });
+                path.appendChild(s);
+            });
             info.appendChild(path);
         }
         
@@ -548,6 +561,14 @@ const Bookmarks = {
         item.appendChild(info);
         item.appendChild(actions);
         
+        // 跨栏拖拽：把收藏拖到左侧文件夹上移动（HTML5 DnD，桌面端）
+        item.addEventListener('dragstart', (e) => {
+            try {
+                e.dataTransfer.setData('text/bookmark-id', bookmark.id);
+                e.dataTransfer.effectAllowed = 'move';
+            } catch (_) {}
+        });
+        
         // 左键点击跳转（拖拽手柄和删除按钮的点击已在捕获阶段处理）
         item.addEventListener('click', (e) => {
             // 避免拖拽手柄和删除按钮的点击
@@ -560,6 +581,31 @@ const Bookmarks = {
         });
         
         return item;
+    },
+    
+    /**
+     * 跳转到指定文件夹（清除搜索、展开路径、选中）
+     */
+    jumpToFolder(folderId) {
+        // 清除搜索状态，否则搜索模式会隐藏文件夹视图
+        const input = document.getElementById('searchInput');
+        if (input) input.value = '';
+        Tree.search('');
+        
+        // 展开父路径并选中（selectFolder 会触发 Bookmarks.setFolder）
+        Tree.expandParentPath(folderId);
+        Tree.selectFolder(folderId);
+    },
+    
+    /**
+     * 字符串哈希 → 0-359 色相（同一输入永远同一颜色）
+     */
+    hashHue(str) {
+        let h = 5381;
+        for (let i = 0; i < str.length; i++) {
+            h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+        }
+        return h % 360;
     },
     
     /**
@@ -686,21 +732,29 @@ const Bookmarks = {
     },
     
     /**
-     * 删除收藏
+     * 删除收藏（移入回收站，30 天内可恢复）
      */
     deleteBookmark(bookmarkId) {
-        if (!confirm('确定要删除此收藏吗？')) return;
+        if (!confirm(App.t('confirmDeleteToTrash'))) return;
         
-        const bookmark = this.data.bookmarks.find(b => b.id === bookmarkId);
-        if (bookmark && this.data.folderOrder && this.data.folderOrder[bookmark.folderId]) {
-            this.data.folderOrder[bookmark.folderId] = this.data.folderOrder[bookmark.folderId].filter(id => id !== bookmarkId);
+        const idx = this.data.bookmarks.findIndex(b => b.id === bookmarkId);
+        if (idx === -1) return;
+        const [bm] = this.data.bookmarks.splice(idx, 1);
+        
+        // 移入回收站
+        if (!this.data.trash) this.data.trash = { folders: [], bookmarks: [] };
+        bm.deletedAt = Date.now();
+        this.data.trash.bookmarks.push(bm);
+        
+        // 从排序中移除
+        if (this.data.folderOrder && this.data.folderOrder[bm.folderId]) {
+            this.data.folderOrder[bm.folderId] = this.data.folderOrder[bm.folderId].filter(id => id !== bookmarkId);
         }
         
-        this.data.bookmarks = this.data.bookmarks.filter(b => b.id !== bookmarkId);
         Storage.save(this.data);
         this.render();
         Tree.render();
-        App.showToast('收藏已删除', 'success');
+        App.showToast(App.t('deletedToTrash'), 'success');
     },
     
     /**

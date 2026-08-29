@@ -1217,6 +1217,184 @@ body.resizing .resizer {
     background: #aaa;
 }
 
+/* ==================== 移动端面包屑（桌面端隐藏） ==================== */
+.mobile-breadcrumb {
+    display: none;
+}
+
+/* ==================== 移动端浮动按钮（桌面端隐藏，滚动树时才出现） ==================== */
+.float-go-btn {
+    display: none;
+    position: fixed;
+    right: 18px;
+    bottom: 28px;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    font-size: 19px;
+    line-height: 1;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    /* 首屏不显示：滚动树时才出现（配合 .visible） */
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.85);
+    transition: opacity 0.25s ease, transform 0.25s ease, background 0.15s;
+}
+
+.float-go-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+
+.float-go-btn:active {
+    transform: scale(0.92);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+/* ==================== 搜索结果的文件夹路径（可点击） ==================== */
+.bookmark-folder-path {
+    font-size: 12px;
+    color: #999;
+    margin-top: 3px;
+    line-height: 1.5;
+}
+
+.folder-path-seg {
+    color: #4a90d9;
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(74, 144, 217, 0.6);
+}
+
+.folder-path-seg:hover {
+    color: #3a7bc8;
+}
+
+/* ==================== 拖拽视觉反馈 ==================== */
+/* 文件夹树：悬停目标高亮（拖文件夹入文件夹 / 拖收藏入文件夹） */
+.tree-node-header.drop-target {
+    outline: 2px dashed #4a90d9;
+    outline-offset: -2px;
+    background: rgba(74, 144, 217, 0.14);
+    border-radius: 6px;
+}
+
+/* 浮动按钮点击后：当前选中节点闪烁提示 */
+.tree-node-header.flash-highlight {
+    animation: treeFlash 1.2s ease;
+}
+
+@keyframes treeFlash {
+    0%, 55% {
+        background: rgba(74, 144, 217, 0.28);
+    }
+    100% {
+        background: transparent;
+    }
+}
+
+/* ==================== 回收站 ==================== */
+.btn-trash {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+.trash-hint {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 12px;
+}
+
+.trash-list {
+    max-height: 55vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trash-empty {
+    text-align: center;
+    color: #999;
+    padding: 30px 0;
+    font-size: 13px;
+}
+
+.trash-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.trash-item-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.trash-item-name {
+    font-size: 14px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trash-item-meta {
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trash-item-ops {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.trash-item-ops .btn {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.btn-restore {
+    color: #4a90d9;
+    border-color: #c5dbf5;
+}
+
+.btn-restore:hover {
+    background: #eef5fd;
+    border-color: #4a90d9;
+    color: #3a7bc8;
+}
+
+.btn-purge {
+    color: #e05252;
+    border-color: #f0c4c4;
+    background: #fff;
+}
+
+.btn-purge:hover {
+    background: #fdf0f0;
+    border-color: #e05252;
+    color: #e05252;
+}
+
 /* ==================== 移动端内联收藏页样式（桌面端隐藏） ==================== */
 .tree-bookmarks {
     display: none;
@@ -1303,5 +1481,50 @@ body.resizing .resizer {
     }
     .tree-empty-state {
         padding: 30px 20px;
+    }
+
+    /* 移动端：显示面包屑导航（当前文件夹路径） */
+    .mobile-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 7px 12px;
+        overflow-x: auto;
+        white-space: nowrap;
+        background: #fafafa;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+        flex-shrink: 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .mobile-breadcrumb::-webkit-scrollbar {
+        display: none;
+    }
+    .crumb-seg {
+        color: #4a90d9;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 2px 0;
+    }
+    .crumb-seg.current {
+        color: #333;
+        font-weight: 600;
+        cursor: default;
+    }
+    .crumb-sep {
+        color: #bbb;
+        flex-shrink: 0;
+    }
+
+    /* 移动端：显示"回到当前收藏夹"浮动按钮 */
+    .float-go-btn {
+        display: flex;
+    }
+
+    /* 回收站弹窗在手机上放宽 */
+    #trashModal .modal-content {
+        width: 92%;
+        max-width: 92%;
     }
 }

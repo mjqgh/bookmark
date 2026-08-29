@@ -74,6 +74,23 @@ const Storage = {
             data.folderOrder = {};
         }
         
+        // 回收站结构（旧数据没有该字段时补全）
+        if (!data.trash || typeof data.trash !== 'object') {
+            data.trash = { folders: [], bookmarks: [] };
+        }
+        if (!Array.isArray(data.trash.folders)) data.trash.folders = [];
+        if (!Array.isArray(data.trash.bookmarks)) data.trash.bookmarks = [];
+        
+        // 回收站保留 30 天，过期自动清理
+        const RETAIN_MS = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const before = data.trash.bookmarks.length + data.trash.folders.length;
+        data.trash.bookmarks = data.trash.bookmarks.filter(b => b.deletedAt && (now - b.deletedAt) < RETAIN_MS);
+        data.trash.folders = data.trash.folders.filter(e => e.deletedAt && (now - e.deletedAt) < RETAIN_MS);
+        if (before !== data.trash.bookmarks.length + data.trash.folders.length) {
+            this.save(data);
+        }
+        
         // 强制重建 folderOrder 以确保一致性
         this.buildFolderOrderFromBookmarks(data);
         return data;

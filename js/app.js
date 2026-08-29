@@ -58,7 +58,25 @@ const App = {
             createFolderInCurrent: '在此文件夹下创建收藏夹',
             emptyFolderTip: '请先创建一个收藏夹',
             searchResultTitle: '搜索结果（{N}条）',
-            searchNoResult: '没有找到匹配的收藏'
+            searchNoResult: '没有找到匹配的收藏',
+            trash: '回收站',
+            trashTitle: '回收站',
+            trashHint: '回收站中的内容保留 30 天，之后自动清除',
+            trashBookmarks: '收藏',
+            trashFolders: '收藏夹',
+            trashEmpty: '回收站是空的',
+            restore: '恢复',
+            deleteForever: '彻底删除',
+            emptyTrash: '清空回收站',
+            deletedToTrash: '已移入回收站',
+            confirmDeleteToTrash: '确定删除？内容将移入回收站（保留30天）',
+            confirmDeleteForever: '确定彻底删除？此操作不可恢复！',
+            confirmEmptyTrash: '确定清空回收站？所有回收站内容将被永久删除！',
+            restored: '已恢复',
+            purged: '已彻底删除',
+            importFile: '从本地文件导入',
+            importHintHtml: '支持 txt 备份文件和浏览器导出的 bookmarks.html',
+            deletedFolderInfo: '{N} 个子项'
         },
         'en': {
             favorites: 'Favorites',
@@ -110,7 +128,25 @@ const App = {
             createFolderInCurrent: 'Create Subfolder in Current Folder',
             emptyFolderTip: 'Please create a folder first',
             searchResultTitle: 'Search Results ({N} items)',
-            searchNoResult: 'No matching bookmarks found'
+            searchNoResult: 'No matching bookmarks found',
+            trash: 'Trash',
+            trashTitle: 'Trash',
+            trashHint: 'Items are kept for 30 days, then removed automatically',
+            trashBookmarks: 'Bookmarks',
+            trashFolders: 'Folders',
+            trashEmpty: 'Trash is empty',
+            restore: 'Restore',
+            deleteForever: 'Delete Forever',
+            emptyTrash: 'Empty Trash',
+            deletedToTrash: 'Moved to Trash',
+            confirmDeleteToTrash: 'Delete? It will be moved to Trash (kept for 30 days)',
+            confirmDeleteForever: 'Delete forever? This cannot be undone!',
+            confirmEmptyTrash: 'Empty Trash? All items will be permanently deleted!',
+            restored: 'Restored',
+            purged: 'Deleted forever',
+            importFile: 'Import from File',
+            importHintHtml: 'Supports txt backup and browser-exported bookmarks.html',
+            deletedFolderInfo: '{N} items'
         }
     },
     
@@ -149,6 +185,9 @@ const App = {
                 Bookmarks.render();
             }
         });
+        
+        // 回收站模块（与 App.data 共享同一引用）
+        Trash.init(this.data);
         
         // 绑定全局事件
         this.bindGlobalEvents();
@@ -343,12 +382,17 @@ const App = {
                 if (folder) {
                     const bookmarkCount = Tree.countBookmarks(folder.id);
                     const subfolderCount = Tree.countSubfolders(folder);
-                    if (confirm(`确定删除"${folder.name}"？\n包含 ${bookmarkCount} 个收藏和 ${subfolderCount} 个子文件夹。`)) {
+                    if (confirm(`确定删除"${folder.name}"？\n将移入回收站（保留30天），包含 ${bookmarkCount} 个收藏和 ${subfolderCount} 个子文件夹。`)) {
                         Tree.deleteFolder(Tree.selectedFolderId);
                         Storage.save(this.data);
                         Bookmarks.data = this.data;
-                        Bookmarks.setFolder(Tree.selectedFolderId);
-                        this.showToast('文件夹已删除', 'success');
+                        const newSel = Tree.selectedFolderId;
+                        if (newSel) {
+                            Tree.selectFolder(newSel);
+                        } else {
+                            Bookmarks.setFolder(null);
+                        }
+                        this.showToast(App.t('deletedToTrash'), 'success');
                     }
                 }
             } else {
@@ -490,7 +534,7 @@ const App = {
                     if (this.data.folders && this.data.folders.length > 0) {
                         App.showToast('请先选择一个收藏夹', 'error');
                     } else {
-                        App.showToast(App.i18n && App.i18n('emptyFolderTip') ? App.i18n('emptyFolderTip') : '请先创建一个收藏夹', 'error');
+                        App.showToast(App.t('emptyFolderTip'), 'error');
                     }
                     return;
                 }
@@ -507,6 +551,45 @@ const App = {
                     }
                 }, 0);
             });
+        }
+
+        // 移动端浮动按钮：回到当前选中的文件夹（P0-3）
+        const goBtn = document.getElementById('btnGoCurrentFolder');
+        if (goBtn) {
+            goBtn.addEventListener('click', () => {
+                // 搜索模式下树被过滤，先清除搜索
+                const input = document.getElementById('searchInput');
+                if (input && input.value) {
+                    input.value = '';
+                    Tree.search('');
+                }
+                if (!Tree.selectedFolderId) return;
+
+                // 展开父路径并重新渲染，确保选中节点在 DOM 中
+                Tree.expandParentPath(Tree.selectedFolderId);
+                Tree.render();
+
+                // 滚动到选中节点并闪烁提示
+                setTimeout(() => {
+                    const header = document.querySelector('.tree-node-header.selected');
+                    if (header) {
+                        header.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        header.classList.add('flash-highlight');
+                        setTimeout(() => header.classList.remove('flash-highlight'), 1500);
+                    }
+                }, 60);
+            });
+
+            // 首屏不显示，滚动文件夹树时才出现，停止滚动 2 秒后淡出
+            const treeEl = document.getElementById('folderTree');
+            if (treeEl) {
+                let hideTimer = null;
+                treeEl.addEventListener('scroll', () => {
+                    goBtn.classList.add('visible');
+                    if (hideTimer) clearTimeout(hideTimer);
+                    hideTimer = setTimeout(() => goBtn.classList.remove('visible'), 2000);
+                }, { passive: true });
+            }
         }
     }
 };

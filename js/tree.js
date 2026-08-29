@@ -171,16 +171,16 @@ const Tree = {
                 Bookmarks.openFolderModal(folderId);
                 break;
             case 'delete-folder':
-                // 删除该文件夹
+                // 删除该文件夹（移入回收站）
                 const folder = this.findFolder(folderId);
                 if (!folder) return;
                 const bookmarkCount = this.countBookmarks(folderId);
                 const subfolderCount = this.countSubfolders(folder);
-                if (confirm(`确定删除"${folder.name}"？\n包含 ${bookmarkCount} 个收藏和 ${subfolderCount} 个子文件夹。`)) {
+                if (confirm(`确定删除"${folder.name}"？\n将移入回收站（保留30天），包含 ${bookmarkCount} 个收藏和 ${subfolderCount} 个子文件夹。`)) {
                     this.deleteFolder(folderId);
                     Storage.save(this.data);
                     this.onUpdate();
-                    App.showToast('文件夹已删除', 'success');
+                    App.showToast(App.t('deletedToTrash'), 'success');
                 }
                 break;
             case 'move-folder':
@@ -364,7 +364,7 @@ const Tree = {
             });
             document.getElementById('emptyCreateBookmark').addEventListener('click', () => {
                 if (this.data.folders.length === 0) {
-                    App.showToast(App.i18n('emptyFolderTip'), 'error');
+                    App.showToast(App.t('emptyFolderTip'), 'error');
                     return;
                 }
                 Bookmarks.openBookmarkModal();
@@ -378,6 +378,50 @@ const Tree = {
         
         // 渲染后初始化拖拽排序
         this.initTreeSortable();
+        
+        // 更新移动端面包屑
+        this.updateBreadcrumb();
+    },
+    
+    /**
+     * 获取从根到指定文件夹的路径（含 id 与 name），用于面包屑与搜索结果跳转
+     * 返回 [{id, name}, ...] 或 null
+     */
+    getFolderPath(folderId, folders = this.data.folders, trail = []) {
+        for (const f of folders) {
+            const next = [...trail, { id: f.id, name: f.name }];
+            if (f.id === folderId) return next;
+            if (f.children && f.children.length) {
+                const found = this.getFolderPath(folderId, f.children, next);
+                if (found) return found;
+            }
+        }
+        return null;
+    },
+    
+    /**
+     * 更新移动端面包屑（显示当前选中文件夹路径，可点击跳转）
+     */
+    updateBreadcrumb() {
+        const bc = document.getElementById('mobileBreadcrumb');
+        if (!bc) return;
+        bc.innerHTML = '';
+        if (!this.selectedFolderId) return;
+        const path = this.getFolderPath(this.selectedFolderId);
+        if (!path) return;
+        path.forEach((seg, i) => {
+            const s = document.createElement('span');
+            s.className = 'crumb-seg' + (i === path.length - 1 ? ' current' : '');
+            s.textContent = seg.name;
+            s.addEventListener('click', () => this.selectFolder(seg.id));
+            bc.appendChild(s);
+            if (i < path.length - 1) {
+                const sep = document.createElement('span');
+                sep.className = 'crumb-sep';
+                sep.textContent = '›';
+                bc.appendChild(sep);
+            }
+        });
     },
     
     /**
@@ -556,6 +600,28 @@ const Tree = {
         header.addEventListener('mouseup', cancelFolderPress);
         header.addEventListener('mouseleave', cancelFolderPress);
         
+        // 跨栏拖拽：右侧收藏页可拖入文件夹（HTML5 DnD，桌面端）
+        header.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('text/bookmark-id')) return;
+            e.preventDefault(); // 允许 drop
+            e.stopPropagation();
+            header.classList.add('drop-target');
+        });
+        header.addEventListener('dragleave', () => {
+            header.classList.remove('drop-target');
+        });
+        header.addEventListener('drop', (e) => {
+            header.classList.remove('drop-target');
+            const bmId = e.dataTransfer ? e.dataTransfer.getData('text/bookmark-id') : '';
+            if (!bmId) return;
+            e.preventDefault();
+            e.stopPropagation();
+            // 拖到自己头上 = 无操作
+            const bm = Bookmarks.data.bookmarks.find(b => b.id === bmId);
+            if (bm && bm.folderId === folder.id) return;
+            Bookmarks.moveBookmarkToFolder(bmId, folder.id);
+        });
+        
         node.appendChild(header);
         
         // 子节点
@@ -651,10 +717,12 @@ const Tree = {
                         if (srcIdx < faviconSources.length) {
                             fav.src = faviconSources[srcIdx++];
                         } else {
-                            // 所有源都失败了，显示首字母占位
+                            // 所有源都失败了，显示首字母占位（固定哈希色，与右侧列表一致）
                             const fb = document.createElement('span');
                             fb.className = 'tree-bookmark-title-favicon-fallback';
                             fb.textContent = firstChar;
+                            fb.style.background = `hsl(${Bookmarks.hashHue(domain || bookmark.title || '?')}, 62%, 50%)`;
+                            fb.style.color = '#fff';
                             titleWrap.insertBefore(fb, titleWrap.firstChild);
                             fav.remove();
                         }
@@ -664,11 +732,13 @@ const Tree = {
 
                     titleWrap.appendChild(fav);
                 } catch (err) {
-                    // URL 解析失败，直接用首字母
+                    // URL 解析失败，直接用首字母（固定哈希色）
                     const firstChar = (bookmark.title || '?').charAt(0).toUpperCase();
                     const fb = document.createElement('span');
                     fb.className = 'tree-bookmark-title-favicon-fallback';
                     fb.textContent = firstChar;
+                    fb.style.background = `hsl(${Bookmarks.hashHue(bookmark.title || '?')}, 62%, 50%)`;
+                    fb.style.color = '#fff';
                     titleWrap.appendChild(fb);
                 }
 
@@ -913,7 +983,7 @@ const Tree = {
     },
     
     /**
-     * 删除文件夹及其所有子文件夹和收藏
+     * 删除文件夹及其所有子文件夹和收藏（移入回收站，可恢复）
      */
     deleteFolder(folderId) {
         const folder = this.findFolder(folderId);
@@ -929,8 +999,35 @@ const Tree = {
         };
         collectIds(folder);
         
-        // 删除相关收藏
+        // 回收站结构
+        if (!this.data.trash) this.data.trash = { folders: [], bookmarks: [] };
+        const now = Date.now();
+        
+        // 为子树内每个文件夹快照排序数据（folderOrder 在 load 时会被清理，靠快照恢复）
+        const snapshotOrder = (f) => {
+            if (this.data.folderOrder && this.data.folderOrder[f.id]) {
+                f.__order = [...this.data.folderOrder[f.id]];
+            }
+            if (f.children) f.children.forEach(snapshotOrder);
+        };
+        snapshotOrder(folder);
+        
+        // 该子树下的收藏 → 移入回收站（保留原 folderId，恢复时跟着文件夹回去）
+        const trashedBookmarks = this.data.bookmarks
+            .filter(b => idsToDelete.includes(b.folderId))
+            .map(b => ({ ...b, deletedAt: now }));
+        this.data.trash.bookmarks.push(...trashedBookmarks);
+        
+        // 从活动数据中移除相关收藏
         this.data.bookmarks = this.data.bookmarks.filter(b => !idsToDelete.includes(b.folderId));
+        
+        // 记录原始父级，随后从树中移除
+        const parent = this.findParentFolder(folderId);
+        this.data.trash.folders.push({
+            folder: folder,
+            originalParentId: parent ? parent.id : '',
+            deletedAt: now
+        });
         
         // 从树中删除
         const removeFromTree = (folders) => {
@@ -948,13 +1045,74 @@ const Tree = {
         };
         removeFromTree(this.data.folders);
         
-        // 清除展开状态
-        idsToDelete.forEach(id => this.expandedNodes.delete(id));
+        // 清除活动数据中的排序与展开状态
+        idsToDelete.forEach(id => {
+            delete this.data.folderOrder[id];
+            this.expandedNodes.delete(id);
+        });
         
-        if (this.selectedFolderId === folderId) {
-            this.selectedFolderId = null;
+        if (this.selectedFolderId === folderId || (this.selectedFolderId && idsToDelete.includes(this.selectedFolderId))) {
+            // 选中的是被删子树内的文件夹 → 回退到第一个可用文件夹
+            this.selectedFolderId = this.data.folders.length > 0 ? this.data.folders[0].id : null;
+            if (this.selectedFolderId) {
+                localStorage.setItem('tree_selected_folder_id', this.selectedFolderId);
+            } else {
+                localStorage.removeItem('tree_selected_folder_id');
+            }
         }
         
+        this.onUpdate();
+        this.render();
+        return true;
+    },
+    
+    /**
+     * 从回收站恢复文件夹（含子树和其中的收藏）
+     */
+    restoreFolder(entry) {
+        if (!entry || !entry.folder) return false;
+        const folder = entry.folder;
+        
+        // 收集子树所有文件夹 ID
+        const ids = [];
+        const collect = (f) => { ids.push(f.id); if (f.children) f.children.forEach(collect); };
+        collect(folder);
+        
+        // 恢复该子树下的收藏
+        if (this.data.trash && Array.isArray(this.data.trash.bookmarks)) {
+            const back = this.data.trash.bookmarks.filter(b => ids.includes(b.folderId));
+            back.forEach(b => { delete b.deletedAt; this.data.bookmarks.push(b); });
+            this.data.trash.bookmarks = this.data.trash.bookmarks.filter(b => !ids.includes(b.folderId));
+        }
+        
+        // 恢复排序快照
+        const walk = (f) => {
+            if (f.__order) {
+                this.data.folderOrder[f.id] = f.__order;
+                delete f.__order;
+            }
+            if (f.children) f.children.forEach(walk);
+        };
+        if (!this.data.folderOrder) this.data.folderOrder = {};
+        walk(folder);
+        
+        // 重新插入树：优先原父级，不存在则放根
+        const parent = entry.originalParentId ? this.findFolder(entry.originalParentId) : null;
+        if (parent) {
+            parent.children = parent.children || [];
+            parent.children.push(folder);
+            this.expandedNodes.add(parent.id);
+        } else {
+            this.data.folders.push(folder);
+        }
+        
+        // 从回收站移除该条目
+        if (this.data.trash && Array.isArray(this.data.trash.folders)) {
+            this.data.trash.folders = this.data.trash.folders.filter(e => e !== entry);
+        }
+        
+        this.expandedNodes.add(folder.id);
+        Storage.save(this.data);
         this.onUpdate();
         this.render();
         return true;
@@ -1019,7 +1177,28 @@ const Tree = {
                 onStart: () => {
                     this.justDragged = true;
                 },
+                // 拖拽悬停高亮：明确提示"放到这里会成为其子文件夹"
+                onMove: (evt) => {
+                    // 清除之前的高亮
+                    document.querySelectorAll('.tree-node-header.drop-target')
+                        .forEach(h => h.classList.remove('drop-target'));
+                    const related = evt.related; // 悬停目标 .tree-node
+                    if (related && related.classList && related.classList.contains('tree-node')) {
+                        const targetFolderId = related.dataset.folderId;
+                        const draggedId = evt.dragged && evt.dragged.dataset.folderId;
+                        // 只有合法目标（非自身、非自己的后代）才高亮
+                        if (targetFolderId && draggedId && draggedId !== targetFolderId
+                            && !this.isDescendant(draggedId, targetFolderId)) {
+                            const h = related.querySelector(':scope > .tree-node-header');
+                            if (h) h.classList.add('drop-target');
+                        }
+                    }
+                    return true;
+                },
                 onEnd: (evt) => {
+                    // 清除悬停高亮
+                    document.querySelectorAll('.tree-node-header.drop-target')
+                        .forEach(h => h.classList.remove('drop-target'));
                     this.handleTreeDragEnd(evt);
                     // 延迟重置，避免 click 事件误触发折叠/展开
                     setTimeout(() => { this.justDragged = false; }, 300);
