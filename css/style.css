@@ -1462,24 +1462,16 @@ body.resizing .resizer {
         font-size: 15px;
     }
 
-    /* 移动端：行首显示拖拽手柄 ⋮⋮ + 展开箭头 ▶（顺序：⋮⋮ 在前，箭头在后） */
+    /* 移动端：行尾展开箭头加大热区（DOM 顺序：⋮⋮ 行首、箭头行尾，两端一致） */
     .tree-toggle {
         display: flex !important;
-        order: 2;
-        width: 30px;
-        height: 34px;
+        width: 34px;
+        height: 36px;
         font-size: 12px;
-        cursor: pointer;
-        /* 扩大触感反馈 */
-        border-radius: 6px;
+        margin-left: 0;
     }
     .tree-toggle:active {
         background: rgba(74, 144, 217, 0.12);
-    }
-    .tree-node-drag {
-        display: flex !important;
-        order: 1;
-        width: 22px;
     }
 
     /* 移动端显示内联收藏页（其余布局样式已定义在全局） */

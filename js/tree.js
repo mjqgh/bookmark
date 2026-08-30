@@ -461,24 +461,7 @@ const Tree = {
             header.classList.add('selected');
         }
         
-        // 展开/折叠箭头
-        const toggle = document.createElement('span');
-        toggle.className = 'tree-toggle';
-        if (!hasContent) {
-            toggle.classList.add('empty');
-        }
-        toggle.innerHTML = '▶';
-        toggle.style.transform = isExpanded && hasContent ? 'rotate(90deg)' : '';
-        header.appendChild(toggle);
-
-        // 箭头独立热区：仅展开/折叠，不改变选中（与名称区域解耦）
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (this.justDragged) return;
-            if (hasContent) this.toggleExpand(folder.id);
-        });
-
-        // 拖拽手柄（移动端显示，与 .tree-toggle 同一 18px 位置）
+        // 拖拽手柄（行首，桌面端+移动端均显示）
         let isOnDragHandle = false;  // 标志：当前是否按在拖拽手柄 ⋮⋮ 上
         const dragHandle = document.createElement('span');
         dragHandle.className = 'tree-node-drag';
@@ -527,7 +510,22 @@ const Tree = {
             meta.textContent = parts.join(' ');
             header.appendChild(meta);
         }
-        
+
+        // 展开/折叠箭头（行尾，桌面端+移动端一致）：仅展开/折叠，不改变选中
+        const toggle = document.createElement('span');
+        toggle.className = 'tree-toggle';
+        if (!hasContent) {
+            toggle.classList.add('empty');
+        }
+        toggle.innerHTML = '▶';
+        toggle.style.transform = isExpanded && hasContent ? 'rotate(90deg)' : '';
+        header.appendChild(toggle);
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.justDragged) return;
+            if (hasContent) this.toggleExpand(folder.id);
+        });
+
         // 点击事件
         header.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -538,15 +536,7 @@ const Tree = {
                 return;
             }
             
-            // 展开/折叠策略（热区已拆分：箭头 = 仅展开/折叠；名称区域 = 选中）：
-            // - 移动端：点击名称 = 选中 + 切换展开（收藏页内联展示在展开节点下，必须展开才能看到内容）
-            // - 桌面端：点击名称 = 仅选中（右侧显示该文件夹内容），展开/折叠交给行首箭头
-            const isMobileView = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-            if (isMobileView) {
-                this.toggleExpand(folder.id);
-            }
-            
-            // 选中文件夹
+            // 单击 = 仅选中（展开/折叠统一交给行尾箭头，移动端与桌面端交互一致）
             this.selectFolder(folder.id);
         });
         
