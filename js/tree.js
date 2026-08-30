@@ -516,12 +516,15 @@ const Tree = {
         }
 
         // 展开/折叠箭头（行尾，桌面端+移动端一致）：仅展开/折叠，不改变选中
+        // 细线 chevron 样式（› 折叠 / ˅ 展开），SVG 跨平台渲染一致
         const toggle = document.createElement('span');
         toggle.className = 'tree-toggle';
         if (!hasContent) {
             toggle.classList.add('empty');
         }
-        toggle.innerHTML = '▶';
+        toggle.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden="true">'
+            + '<path d="M5.5 3.5 L10.5 8 L5.5 12.5" stroke="currentColor" stroke-width="1.8" '
+            + 'stroke-linecap="round" stroke-linejoin="round"/></svg>';
         toggle.style.transform = isExpanded && hasContent ? 'rotate(90deg)' : '';
         header.appendChild(toggle);
         toggle.addEventListener('click', (e) => {

@@ -427,6 +427,10 @@ body.resizing .resizer {
     transform: rotate(90deg);
 }
 
+.tree-toggle svg {
+    display: block;
+}
+
 .tree-toggle.empty {
     visibility: hidden;
 }
@@ -1516,6 +1520,11 @@ body.resizing .resizer {
     }
     .tree-toggle:active {
         background: rgba(74, 144, 217, 0.12);
+    }
+    /* 移动端 chevron 稍大，与加大热区匹配 */
+    .tree-toggle svg {
+        width: 14px;
+        height: 14px;
     }
     /* 移动端：仅收藏页的文件夹恢复显示箭头（收藏内联展示在展开节点下，需要展开才能看到） */
     .tree-node-header:not(.has-sub) > .tree-toggle:not(.empty) {
