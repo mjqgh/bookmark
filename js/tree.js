@@ -454,6 +454,10 @@ const Tree = {
         if (hasContent) {
             header.classList.add('has-children');
         }
+        if (hasChildren) {
+            // 有子收藏夹：桌面端据此决定是否显示展开箭头（仅收藏页的文件夹桌面端不显示箭头）
+            header.classList.add('has-sub');
+        }
         if (isExpanded && hasContent) {
             header.classList.add('expanded');
         }

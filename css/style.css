@@ -388,6 +388,11 @@ body.resizing .resizer {
     visibility: hidden;
 }
 
+/* 桌面端：无子收藏夹（仅收藏页/空）的文件夹不显示箭头（内容在右侧主区域直接可见）；visibility 保持占位，行尾不跳动 */
+.tree-node-header:not(.has-sub) > .tree-toggle {
+    visibility: hidden;
+}
+
 /* 文件夹图标 */
 .tree-icon {
     margin-right: 6px;
@@ -1472,6 +1477,10 @@ body.resizing .resizer {
     }
     .tree-toggle:active {
         background: rgba(74, 144, 217, 0.12);
+    }
+    /* 移动端：仅收藏页的文件夹恢复显示箭头（收藏内联展示在展开节点下，需要展开才能看到） */
+    .tree-node-header:not(.has-sub) > .tree-toggle:not(.empty) {
+        visibility: visible;
     }
 
     /* 移动端显示内联收藏页（其余布局样式已定义在全局） */
