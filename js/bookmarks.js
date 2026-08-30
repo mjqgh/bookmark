@@ -383,9 +383,8 @@ const Bookmarks = {
             });
             return;
         }
-        
-        // 无搜索：按当前选中文件夹展示（恢复拖拽排序能力）
-        if (this.sortable) this.sortable.option('disabled', false);
+        // 无搜索：按当前选中文件夹展示（恢复拖拽排序能力；若全局拖拽锁已锁定则保持禁用）
+        if (this.sortable) this.sortable.option('disabled', !App.dragUnlocked);
         
         if (!this.currentFolderId) {
             title.textContent = '收藏夹';

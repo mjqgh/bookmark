@@ -158,6 +158,9 @@ const App = {
     init() {
         // 加载数据
         this.data = Storage.load();
+
+        // 拖拽排序总开关（默认解锁；持久化到 localStorage）
+        this.dragUnlocked = localStorage.getItem('dragUnlocked') !== '0';
         
         // 加载语言设置
         this.currentLanguage = this.data.settings?.language || 'zh-CN';
@@ -193,6 +196,7 @@ const App = {
         
         // 绑定全局事件
         this.bindGlobalEvents();
+        this.applyDragLock();
         
         // 绑定移动端侧栏快捷按钮
         this.bindMobileActions();
@@ -329,6 +333,26 @@ const App = {
     },
 
     /**
+     * 应用拖拽排序锁状态
+     * 锁定时：隐藏所有拖拽手柄（CSS）+ 禁用 Sortable 实例（双保险）
+     */
+    applyDragLock() {
+        const locked = !this.dragUnlocked;
+        document.body.classList.toggle('drag-locked', locked);
+        (Tree.treeSortables || []).forEach(s => s.option('disabled', locked));
+        if (Bookmarks.sortable) Bookmarks.sortable.option('disabled', locked);
+
+        const btn = document.getElementById('btnLockDrag');
+        if (btn) {
+            btn.textContent = this.dragUnlocked ? '🔓' : '🔒';
+            btn.classList.toggle('lock-active', locked);
+            btn.title = this.currentLanguage === 'en-US'
+                ? (this.dragUnlocked ? 'Drag sorting unlocked (click to lock)' : 'Drag sorting locked (click to unlock)')
+                : (this.dragUnlocked ? '拖拽已解锁（点击锁定）' : '拖拽已锁定（点击解锁）');
+        }
+    },
+
+    /**
      * 绑定全局事件
      */
     bindGlobalEvents() {
@@ -350,6 +374,16 @@ const App = {
             Tree.search('');
             Bookmarks.render();
             searchInput.focus();
+        });
+
+        // 拖拽排序总开关（锁）：解锁=显示 ⋮⋮ 并允许拖拽；锁定=隐藏手柄并禁用拖拽
+        document.getElementById('btnLockDrag').addEventListener('click', () => {
+            this.dragUnlocked = !this.dragUnlocked;
+            localStorage.setItem('dragUnlocked', this.dragUnlocked ? '1' : '0');
+            this.applyDragLock();
+            this.showToast(this.dragUnlocked
+                ? (this.currentLanguage === 'en-US' ? 'Drag sorting unlocked' : '已解锁拖拽排序')
+                : (this.currentLanguage === 'en-US' ? 'Drag sorting locked' : '已锁定拖拽排序'), 'info');
         });
 
         // 全部展开 / 全部折叠

@@ -437,6 +437,20 @@ body.resizing .resizer {
     visibility: hidden;
 }
 
+/* 拖拽锁：锁定时隐藏所有拖拽手柄（树文件夹 ⋮⋮ / 内联收藏 / 右侧收藏列表） */
+body.drag-locked .tree-node-drag,
+body.drag-locked .tree-bookmark-drag,
+body.drag-locked .drag-handle {
+    visibility: hidden;
+}
+
+/* 锁按钮锁定态：高亮提示当前禁止拖拽 */
+.expand-toggle-btn.lock-active {
+    background: #fdecea;
+    border-color: #f5c6c2;
+    color: #c0392b;
+}
+
 /* 桌面端：无子收藏夹（仅收藏页/空）的文件夹不显示箭头（内容在右侧主区域直接可见）；visibility 保持占位，行尾不跳动 */
 .tree-node-header:not(.has-sub) > .tree-toggle {
     visibility: hidden;
