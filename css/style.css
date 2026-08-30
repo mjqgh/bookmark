@@ -385,8 +385,8 @@ body.resizing .resizer {
 
 /* 展开/折叠箭头：桌面/移动端均显示，点击仅展开/折叠（不改变选中）；空内容时用 visibility 占位隐藏 */
 .tree-toggle {
-    width: 18px;
-    height: 18px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -396,6 +396,8 @@ body.resizing .resizer {
     cursor: pointer;
     border-radius: 4px;
     transition: transform 0.2s;
+    /* 与 meta 文案的间距 = header 右内边距，保证「文案-图标-右边缘」视觉对称 */
+    margin-left: 12px;
 }
 
 .tree-toggle:hover {
@@ -1513,10 +1515,10 @@ body.resizing .resizer {
     /* 移动端：行尾展开箭头加大热区（DOM 顺序：⋮⋮ 行首、箭头行尾，两端一致） */
     .tree-toggle {
         display: flex !important;
-        width: 34px;
+        width: 36px;
         height: 36px;
         font-size: 12px;
-        margin-left: 0;
+        margin-left: 10px;
     }
     .tree-toggle:active {
         background: rgba(74, 144, 217, 0.12);
