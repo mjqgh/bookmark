@@ -471,6 +471,13 @@ const Tree = {
         toggle.style.transform = isExpanded && hasContent ? 'rotate(90deg)' : '';
         header.appendChild(toggle);
 
+        // 箭头独立热区：仅展开/折叠，不改变选中（与名称区域解耦）
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.justDragged) return;
+            if (hasContent) this.toggleExpand(folder.id);
+        });
+
         // 拖拽手柄（移动端显示，与 .tree-toggle 同一 18px 位置）
         let isOnDragHandle = false;  // 标志：当前是否按在拖拽手柄 ⋮⋮ 上
         const dragHandle = document.createElement('span');
@@ -531,11 +538,11 @@ const Tree = {
                 return;
             }
             
-            // 展开/折叠策略：
-            // - 移动端：一律切换（因为内联收藏页依赖展开状态显示，叶子文件夹也要能收回去）
-            // - 桌面端：只有有子文件夹时才切换，保持「选中文件夹在右侧展示内容」的直觉
+            // 展开/折叠策略（热区已拆分：箭头 = 仅展开/折叠；名称区域 = 选中）：
+            // - 移动端：点击名称 = 选中 + 切换展开（收藏页内联展示在展开节点下，必须展开才能看到内容）
+            // - 桌面端：点击名称 = 仅选中（右侧显示该文件夹内容），展开/折叠交给行首箭头
             const isMobileView = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-            if (isMobileView || hasChildren || bookmarkCount > 0) {
+            if (isMobileView) {
                 this.toggleExpand(folder.id);
             }
             
