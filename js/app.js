@@ -65,6 +65,7 @@ const App = {
             trashBookmarks: '收藏',
             trashFolders: '收藏夹',
             trashEmpty: '回收站是空的',
+            openTrash: '打开回收站',
             restore: '恢复',
             deleteForever: '彻底删除',
             emptyTrash: '清空回收站',
@@ -135,6 +136,7 @@ const App = {
             trashBookmarks: 'Bookmarks',
             trashFolders: 'Folders',
             trashEmpty: 'Trash is empty',
+            openTrash: 'Open Trash',
             restore: 'Restore',
             deleteForever: 'Delete Forever',
             emptyTrash: 'Empty Trash',
@@ -331,10 +333,23 @@ const App = {
      */
     bindGlobalEvents() {
         // 搜索框
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        const searchInput = document.getElementById('searchInput');
+        const searchBox = document.getElementById('searchBox');
+        searchInput.addEventListener('input', (e) => {
             const query = e.target.value;
+            // 有内容时显示清除按钮
+            searchBox.classList.toggle('has-text', query.length > 0);
             Tree.search(query);
             Bookmarks.render();
+        });
+
+        // 清除搜索按钮：清空输入并恢复完整列表
+        document.getElementById('btnClearSearch').addEventListener('click', () => {
+            searchInput.value = '';
+            searchBox.classList.remove('has-text');
+            Tree.search('');
+            Bookmarks.render();
+            searchInput.focus();
         });
 
         // 全部展开 / 全部折叠

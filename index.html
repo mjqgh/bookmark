@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=23">
+    <link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
     <div class="app">
@@ -15,14 +15,16 @@
                 <div class="sidebar-actions">
                     <button class="btn btn-add-bm-mobile" id="btnAddBookmarkMobile" title="添加收藏页">☆</button>
                     <button class="btn btn-add-fd-mobile" id="btnAddFolderMobile" title="添加收藏夹">📁</button>
-                    <button class="btn btn-trash" id="btnTrash" data-i18n="trash" title="回收站">🗑</button>
                     <button class="btn btn-config" id="btnConfig" data-i18n="config">配置</button>
                     <button class="btn btn-language" id="btnLanguage" data-i18n="language">语言</button>
                 </div>
             </div>
             
             <div class="search-container">
-                <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="搜索收藏夹">
+                <div class="search-box" id="searchBox">
+                    <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="搜索收藏夹">
+                    <button class="search-clear-btn" id="btnClearSearch" title="清空搜索" aria-label="清空搜索">×</button>
+                </div>
                 <button class="expand-toggle-btn" id="btnExpandAll" title="全部展开" data-i18n="expandAll">⊞</button>
                 <button class="expand-toggle-btn" id="btnCollapseAll" title="全部折叠" data-i18n="collapseAll">⊟</button>
             </div>
@@ -85,6 +87,10 @@
                 <div class="config-section">
                     <h4 data-i18n="exportSection">导出</h4>
                     <button class="btn btn-primary" id="btnExport" data-i18n="export">导出为 txt 文件</button>
+                </div>
+                <div class="config-section">
+                    <h4 data-i18n="trash">回收站</h4>
+                    <button class="btn btn-default" id="btnTrash" data-i18n="openTrash">打开回收站</button>
                 </div>
                 <div class="config-section">
                     <h4 data-i18n="formatSection">文件格式说明</h4>
@@ -297,6 +303,6 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/bookmarks.js?v=12"></script>
     <script src="js/config.js?v=4"></script>
     <script src="js/trash.js?v=1"></script>
-    <script src="js/app.js?v=13"></script>
+    <script src="js/app.js?v=14"></script>
 </body>
 </html>
