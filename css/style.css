@@ -769,13 +769,13 @@ body.drag-locked .drag-handle {
     border-radius: 6px;
 }
 
-/* 拖拽时给文件夹头加 grab 光标 */
+/* 文件夹 header：点击可展开/折叠（拖拽仅通过 ⋮⋮ 手柄，grab 光标只在手柄上） */
 .tree-node-header {
-    cursor: grab;
+    cursor: pointer;
 }
 
 .tree-node-header:active {
-    cursor: grabbing;
+    cursor: default;
 }
 
 /* ==================== 右侧主内容区 ==================== */
