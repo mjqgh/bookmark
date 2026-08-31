@@ -326,6 +326,10 @@ body.resizing .resizer {
     background: #d0e0fc;
 }
 
+.expand-toggle-btn svg {
+    display: block;
+}
+
 /* ==================== 文件夹树 ==================== */
 .folder-tree {
     flex: 1;
