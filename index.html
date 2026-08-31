@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=28">
+    <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body>
     <div class="app">
@@ -25,9 +25,8 @@
                     <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="搜索收藏夹">
                     <button class="search-clear-btn" id="btnClearSearch" title="清空搜索" aria-label="清空搜索">×</button>
                 </div>
-                <button class="expand-toggle-btn" id="btnExpandAll" title="全部展开" data-i18n="expandAll">⊞</button>
-                <button class="expand-toggle-btn" id="btnCollapseAll" title="全部折叠" data-i18n="collapseAll">⊟</button>
-                <button class="expand-toggle-btn" id="btnLockDrag" title="拖拽已解锁（点击锁定）">🔓</button>
+                <button class="expand-toggle-btn" id="btnToggleExpand" title="全部展开">⊞</button>
+                <button class="expand-toggle-btn" id="btnLockDrag" title="拖拽已解锁（点击锁定）"></button>
             </div>
 
             <!-- 移动端面包屑：当前路径导航（桌面端隐藏） -->
@@ -300,10 +299,10 @@ Photopea,https://www.photopea.com/</pre>
 
     <!-- JavaScript 模块 -->
     <script src="js/storage.js?v=4"></script>
-    <script src="js/tree.js?v=45"></script>
+    <script src="js/tree.js?v=47"></script>
     <script src="js/bookmarks.js?v=13"></script>
     <script src="js/config.js?v=4"></script>
     <script src="js/trash.js?v=1"></script>
-    <script src="js/app.js?v=15"></script>
+    <script src="js/app.js?v=19"></script>
 </body>
 </html>

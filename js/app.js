@@ -5,6 +5,10 @@
 const App = {
     data: null,
     currentLanguage: 'zh-CN',
+
+    // 拖拽锁按钮 SVG 图标（解锁=开口锁，锁定=闭口锁）
+    SVG_UNLOCK: '<svg viewBox="0 0 1024 1024" width="16" height="16" fill="currentColor"><path d="M768.25422 0q48.810328 0 94.061569 18.303873t80.333664 50.33565 56.436941 74.740814 21.354518 91.519364l0 150.49851-123.042701 0 0-122.025819q0-64.063555-36.099305-99.654419t-97.112214-35.590864q-54.911619 0-88.468719 35.590864t-33.5571 99.654419l0 124.059583-128.12711 0 0-152.532274q0-48.810328 19.320755-91.519364t53.386296-74.740814 80.333664-50.33565 101.179742-18.303873zM766.220457 693.513406l0 87.451837 0 47.793446q0 27.455809-9.660377 51.860973t-26.438928 41.692155-39.658391 27.455809-50.33565 10.168818l-514.542205 0q-27.455809 0-49.82721-9.660377t-38.641509-26.438928-24.913605-39.14995-8.643496-47.793446l0-323.368421q0-28.472691 19.829196-47.793446t46.268123-19.320755l629.449851 0q28.472691 0 47.793446 19.320755t19.320755 47.793446l0 179.988083z"></path></svg>',
+    SVG_LOCK: '<svg viewBox="0 0 1024 1024" width="16" height="16" fill="currentColor"><path d="M385.150849 385.662338l-128.895105 0 0-150.377622q0-49.102897 19.436563-91.556444t53.706294-74.677323 80.815185-50.637363 101.786214-18.413586q49.102897 0 94.625375 18.413586t80.815185 50.637363 56.263736 74.677323 20.971029 91.556444l0 150.377622-123.78022 0 0-121.734266q0-64.447552-35.804196-99.74026t-97.182817-35.292707q-55.240759 0-88.999001 35.292707t-33.758242 99.74026l0 121.734266zM826.053946 447.040959q27.62038 0 47.568432 19.948052t19.948052 47.568432l0 317.122877q0 27.62038-9.718282 51.66034t-26.597403 41.942058-39.896104 28.131868-50.637363 10.22977l-516.603397 0q-27.62038 0-50.125874-10.22977t-38.361638-27.108891-24.551449-39.384615-8.695305-48.07992l0-324.283716q0-27.62038 19.436563-47.568432t47.056943-19.948052l61.378621 0 128.895105 0 255.744256 0 123.78022 0 61.378621 0z"></path></svg>',
     
     // 国际化文案
     translations: {
@@ -179,6 +183,9 @@ const App = {
             },
             onUpdate: () => {
                 Storage.save(this.data);
+            },
+            onAfterRender: () => {
+                this.updateToggleExpandBtn();
             }
         });
         
@@ -197,6 +204,7 @@ const App = {
         // 绑定全局事件
         this.bindGlobalEvents();
         this.applyDragLock();
+        this.updateToggleExpandBtn();
         
         // 绑定移动端侧栏快捷按钮
         this.bindMobileActions();
@@ -344,12 +352,26 @@ const App = {
 
         const btn = document.getElementById('btnLockDrag');
         if (btn) {
-            btn.textContent = this.dragUnlocked ? '🔓' : '🔒';
+            // 已解锁=显示开口锁（可点击锁定）；已锁定=显示闭口锁（可点击解锁）
+            btn.innerHTML = this.dragUnlocked ? this.SVG_UNLOCK : this.SVG_LOCK;
             btn.classList.toggle('lock-active', locked);
             btn.title = this.currentLanguage === 'en-US'
                 ? (this.dragUnlocked ? 'Drag sorting unlocked (click to lock)' : 'Drag sorting locked (click to unlock)')
                 : (this.dragUnlocked ? '拖拽已解锁（点击锁定）' : '拖拽已锁定（点击解锁）');
         }
+    },
+
+    /**
+     * 更新展开/折叠切换按钮的图标和 tooltip
+     * 只要有任意一个文件夹处于展开状态 → 显示"全部折叠"（⊟）
+     * 所有文件夹都是折叠的 → 显示"全部展开"（⊞）
+     */
+    updateToggleExpandBtn() {
+        const btn = document.getElementById('btnToggleExpand');
+        if (!btn) return;
+        const anyExpanded = Tree.expandedNodes.size > 0;
+        btn.textContent = anyExpanded ? '⊟' : '⊞';
+        btn.title = anyExpanded ? '全部折叠' : '全部展开';
     },
 
     /**
@@ -386,16 +408,20 @@ const App = {
                 : (this.currentLanguage === 'en-US' ? 'Drag sorting locked' : '已锁定拖拽排序'), 'info');
         });
 
-        // 全部展开 / 全部折叠
-        document.getElementById('btnExpandAll').addEventListener('click', () => {
-            Tree.expandAllFolders();
+        // 全部展开 / 全部折叠（一个按钮自动切换）
+        const btnToggleExpand = document.getElementById('btnToggleExpand');
+        btnToggleExpand.addEventListener('click', () => {
+            const anyExpanded = Tree.expandedNodes.size > 0;
+            if (anyExpanded) {
+                // 只要有任意一个展开 → 全部折叠
+                Tree.collapseAllFolders();
+                App.showToast('已全部折叠', 'info');
+            } else {
+                // 全部折叠态 → 全部展开
+                Tree.expandAllFolders();
+                App.showToast('已全部展开', 'info');
+            }
             Tree.render();
-            App.showToast('已全部展开', 'info');
-        });
-        document.getElementById('btnCollapseAll').addEventListener('click', () => {
-            Tree.collapseAllFolders();
-            Tree.render();
-            App.showToast('已全部折叠', 'info');
         });
 
         // 语言按钮

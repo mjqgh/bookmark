@@ -21,6 +21,7 @@ const Tree = {
         this.data = data;
         this.onSelectFolder = callbacks.onSelectFolder || function() {};
         this.onUpdate = callbacks.onUpdate || function() {};
+        this.onAfterRender = callbacks.onAfterRender || function() {};
         
         // 创建全局 tooltip 元素
         this.createTooltip();
@@ -381,6 +382,9 @@ const Tree = {
         
         // 更新移动端面包屑
         this.updateBreadcrumb();
+        
+        // 通知外部渲染完成（用于更新按钮状态等）
+        this.onAfterRender();
     },
     
     /**
@@ -1341,6 +1345,22 @@ const Tree = {
                 this.expandAllFolders(f.children);
             }
         });
+    },
+
+    /**
+     * 检查所有文件夹是否都已展开
+     */
+    isAllExpanded() {
+        const allFolderIds = [];
+        const walk = (folders) => {
+            folders.forEach(f => {
+                allFolderIds.push(f.id);
+                if (f.children && f.children.length > 0) walk(f.children);
+            });
+        };
+        walk(this.data.folders);
+        if (allFolderIds.length === 0) return true;
+        return allFolderIds.every(id => this.expandedNodes.has(id));
     },
 
     /**
