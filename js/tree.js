@@ -535,6 +535,8 @@ const Tree = {
             e.stopPropagation();
             if (this.justDragged) return;
             if (hasContent) this.toggleExpand(folder.id);
+            // 展开后用户焦点自然落在该文件夹，同步选中
+            this.selectFolder(folder.id);
         });
 
         // 点击事件
