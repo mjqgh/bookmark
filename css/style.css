@@ -249,7 +249,7 @@ body.resizing .resizer {
     transition: all 0.2s;
 }
 
-/* 搜索框容器：包住输入框，为清除按钮提供定位基准 */
+/* 搜索框容器：包住输入框，为清除按钮 / 网络搜索按钮提供定位基准 */
 .search-box {
     position: relative;
     flex: 1;
@@ -257,15 +257,16 @@ body.resizing .resizer {
     display: flex;
 }
 
+/* 输入框右侧永久预留两个按钮的位置，不与文字重叠 */
 .search-box .search-input {
     width: 100%;
-    padding-right: 32px;
+    padding-right: 72px;
 }
 
-/* 清除搜索按钮：输入内容后出现在输入框右侧 */
+/* 清除搜索按钮：输入内容后出现在搜索按钮左侧 */
 .search-clear-btn {
     position: absolute;
-    right: 9px;
+    right: 40px;
     top: 50%;
     transform: translateY(-50%);
     width: 20px;
@@ -282,6 +283,7 @@ body.resizing .resizer {
     align-items: center;
     justify-content: center;
     transition: background 0.15s;
+    z-index: 2;
 }
 
 .search-box.has-text .search-clear-btn {
@@ -290,6 +292,36 @@ body.resizing .resizer {
 
 .search-clear-btn:hover {
     background: #b5b5b5;
+}
+
+/* 网络搜索按钮（始终显示在搜索框内最右侧） */
+.search-web-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    z-index: 2;
+}
+
+.search-web-btn:hover {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+
+.search-web-btn:active {
+    background: #d0e0fc;
 }
 
 .search-input:focus {
@@ -1128,6 +1160,12 @@ body.drag-locked .drag-handle {
     gap: 12px;
 }
 
+.config-hint {
+    font-size: 12px;
+    color: #999;
+    line-height: 1.5;
+}
+
 .url-import {
     display: flex;
     gap: 8px;
@@ -1483,6 +1521,66 @@ body.drag-locked .drag-handle {
     color: #e05252;
 }
 
+/* 长按 🌐 弹出的搜索引擎选择器 */
+.engine-picker {
+    position: fixed;
+    z-index: 99999;
+    min-width: 210px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e8e8e8;
+    padding: 6px;
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+    transition: opacity 0.15s, transform 0.15s;
+    pointer-events: none;
+}
+.engine-picker.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+.engine-picker-title {
+    font-size: 12px;
+    color: #999;
+    padding: 4px 8px 6px;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 4px;
+}
+.engine-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background 0.1s;
+}
+.engine-picker-item:hover {
+    background: #f0f4f8;
+}
+.engine-picker-item.is-current {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+.engine-check {
+    width: 16px;
+    text-align: center;
+    color: inherit;
+    font-weight: 600;
+    visibility: hidden;
+}
+.engine-picker-item.is-current .engine-check {
+    visibility: visible;
+}
+.engine-name {
+    flex: 1;
+    min-width: 0;
+}
+
 /* ==================== 移动端内联收藏页样式（桌面端隐藏） ==================== */
 .tree-bookmarks {
     display: none;
@@ -1530,7 +1628,7 @@ body.drag-locked .drag-handle {
     }
     .search-input {
         padding: 8px 12px;
-        padding-right: 34px;
+        padding-right: 76px !important; /* 移动端预留两个按钮空间 */
         font-size: 14px;
     }
 

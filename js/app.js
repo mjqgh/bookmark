@@ -6,6 +6,14 @@ const App = {
     data: null,
     currentLanguage: 'zh-CN',
 
+    // 搜索引擎列表（engineId 作为主键）
+    SEARCH_ENGINES: [
+        { id: 'baidu',  url: 'https://www.baidu.com/s?wd={q}' },
+        { id: 'bing',   url: 'https://www.bing.com/search?q={q}' },
+        { id: 'google', url: 'https://www.google.com/search?q={q}' },
+        { id: 'sogou',  url: 'https://www.sogou.com/web?query={q}' }
+    ],
+
     // 拖拽锁按钮 SVG 图标（解锁=开口锁，锁定=闭口锁）
     SVG_UNLOCK: '<svg viewBox="0 0 1024 1024" width="16" height="16" fill="currentColor"><path d="M768.25422 0q48.810328 0 94.061569 18.303873t80.333664 50.33565 56.436941 74.740814 21.354518 91.519364l0 150.49851-123.042701 0 0-122.025819q0-64.063555-36.099305-99.654419t-97.112214-35.590864q-54.911619 0-88.468719 35.590864t-33.5571 99.654419l0 124.059583-128.12711 0 0-152.532274q0-48.810328 19.320755-91.519364t53.386296-74.740814 80.333664-50.33565 101.179742-18.303873zM766.220457 693.513406l0 87.451837 0 47.793446q0 27.455809-9.660377 51.860973t-26.438928 41.692155-39.658391 27.455809-50.33565 10.168818l-514.542205 0q-27.455809 0-49.82721-9.660377t-38.641509-26.438928-24.913605-39.14995-8.643496-47.793446l0-323.368421q0-28.472691 19.829196-47.793446t46.268123-19.320755l629.449851 0q28.472691 0 47.793446 19.320755t19.320755 47.793446l0 179.988083z"></path></svg>',
     SVG_LOCK: '<svg viewBox="0 0 1024 1024" width="16" height="16" fill="currentColor"><path d="M385.150849 385.662338l-128.895105 0 0-150.377622q0-49.102897 19.436563-91.556444t53.706294-74.677323 80.815185-50.637363 101.786214-18.413586q49.102897 0 94.625375 18.413586t80.815185 50.637363 56.263736 74.677323 20.971029 91.556444l0 150.377622-123.78022 0 0-121.734266q0-64.447552-35.804196-99.74026t-97.182817-35.292707q-55.240759 0-88.999001 35.292707t-33.758242 99.74026l0 121.734266zM826.053946 447.040959q27.62038 0 47.568432 19.948052t19.948052 47.568432l0 317.122877q0 27.62038-9.718282 51.66034t-26.597403 41.942058-39.896104 28.131868-50.637363 10.22977l-516.603397 0q-27.62038 0-50.125874-10.22977t-38.361638-27.108891-24.551449-39.384615-8.695305-48.07992l0-324.283716q0-27.62038 19.436563-47.568432t47.056943-19.948052l61.378621 0 128.895105 0 255.744256 0 123.78022 0 61.378621 0z"></path></svg>',
@@ -16,7 +24,16 @@ const App = {
             favorites: '收藏夹',
             config: '配置',
             language: '语言',
-            searchPlaceholder: '搜索收藏夹',
+            searchPlaceholder: '搜索本地或网络',
+            defaultSearchEngine: '默认搜索引擎',
+            searchEngineHint: '网络搜索的默认引擎，也可在搜索框长按 🌐 按钮临时切换',
+            engine_baidu: '百度 (Baidu)',
+            engine_bing: '必应 (Bing)',
+            engine_google: 'Google',
+            engine_sogou: '搜狗 (Sogou)',
+            webSearchEmpty: '请先输入要搜索的关键词',
+            webSearchHolding: '已切为默认引擎：{name}',
+            webSearchTitle: '选择默认搜索引擎',
             addBookmark: '添加收藏页',
             addFolder: '添加收藏夹',
             configTitle: '配置',
@@ -87,7 +104,16 @@ const App = {
             favorites: 'Favorites',
             config: 'Config',
             language: 'Language',
-            searchPlaceholder: 'Search favorites',
+            searchPlaceholder: 'Search local or web',
+            defaultSearchEngine: 'Default Search Engine',
+            searchEngineHint: 'Default engine for web search. Long-press the 🌐 button in search box to switch.',
+            engine_baidu: 'Baidu',
+            engine_bing: 'Bing',
+            engine_google: 'Google',
+            engine_sogou: 'Sogou',
+            webSearchEmpty: 'Please enter a keyword to search',
+            webSearchHolding: 'Default engine changed to {name}',
+            webSearchTitle: 'Choose default search engine',
             addBookmark: 'Add Bookmark',
             addFolder: 'Add Folder',
             configTitle: 'Configuration',
@@ -205,6 +231,8 @@ const App = {
         this.bindGlobalEvents();
         this.applyDragLock();
         this.updateToggleExpandBtn();
+        // 初始化搜索引擎配置：填充下拉默认值
+        this.renderSearchEngineSelect();
         
         // 绑定移动端侧栏快捷按钮
         this.bindMobileActions();
@@ -340,6 +368,146 @@ const App = {
         });
     },
 
+    // ========== 搜索引擎 ==========
+
+    /**
+     * 根据 engineId 返回引擎配置，或默认引擎
+     */
+    getSearchEngine(engineId) {
+        const id = engineId || this.getDefaultEngineId();
+        return this.SEARCH_ENGINES.find(e => e.id === id) || this.SEARCH_ENGINES[0];
+    },
+
+    /**
+     * 读取默认搜索引擎 id：优先 settings.searchEngine → 语言默认（en→bing / 其他→baidu）
+     */
+    getDefaultEngineId() {
+        const stored = this.data?.settings?.searchEngine;
+        if (stored && this.SEARCH_ENGINES.some(e => e.id === stored)) return stored;
+        // 英文用户默认 Bing（Google 在部分地区受限）
+        const lang = this.currentLanguage;
+        if (lang === 'en') return 'bing';
+        return 'baidu';
+    },
+
+    /**
+     * 写入默认搜索引擎并持久化，同步 UI
+     */
+    setDefaultEngineId(engineId) {
+        if (!this.SEARCH_ENGINES.some(e => e.id === engineId)) return;
+        if (!this.data.settings) this.data.settings = {};
+        this.data.settings.searchEngine = engineId;
+        Storage.save(this.data);
+        this.renderSearchEngineSelect();
+    },
+
+    /**
+     * 获取引擎显示名（多语言）
+     */
+    getEngineName(engineId) {
+        return this.t('engine_' + engineId);
+    },
+
+    /**
+     * 渲染配置里的搜索引擎下拉：按当前语言重建 option 文本并同步选中
+     */
+    renderSearchEngineSelect() {
+        const sel = document.getElementById('searchEngineSelect');
+        if (!sel) return;
+        const current = this.getDefaultEngineId();
+        // 重写 option 文本（多语言），保持 value 不变
+        Array.from(sel.options).forEach(opt => {
+            opt.textContent = this.getEngineName(opt.value);
+        });
+        sel.value = current;
+    },
+
+    /**
+     * 执行网络搜索
+     * @param {string} engineId 可选，临时指定引擎（仅本次搜索生效，不改默认）
+     * @param {boolean} alsoSetDefault 本次选择后也设为默认引擎（长按选择器用）
+     */
+    openWebSearch(engineId, alsoSetDefault) {
+        const input = document.getElementById('searchInput');
+        const q = (input && input.value || '').trim();
+        if (!q) {
+            this.showToast(this.t('webSearchEmpty'), 'error');
+            input && input.focus();
+            return;
+        }
+        const eng = this.getSearchEngine(engineId);
+        if (alsoSetDefault) this.setDefaultEngineId(eng.id);
+        const url = eng.url.replace('{q}', encodeURIComponent(q));
+        window.open(url, '_blank', 'noopener');
+    },
+
+    /**
+     * 显示"长按切换默认引擎"弹出菜单
+     */
+    showEnginePicker(x, y) {
+        // 清除旧的
+        this.hideEnginePicker();
+        const wrap = document.createElement('div');
+        wrap.id = 'enginePicker';
+        wrap.className = 'engine-picker';
+        const title = document.createElement('div');
+        title.className = 'engine-picker-title';
+        title.textContent = this.t('webSearchTitle');
+        wrap.appendChild(title);
+        const current = this.getDefaultEngineId();
+        this.SEARCH_ENGINES.forEach(e => {
+            const item = document.createElement('div');
+            item.className = 'engine-picker-item';
+            if (e.id === current) item.classList.add('is-current');
+            item.dataset.engineId = e.id;
+            item.innerHTML =
+                '<span class="engine-check">✓</span>'
+                + '<span class="engine-name">' + this.getEngineName(e.id) + '</span>';
+            item.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                this.setDefaultEngineId(e.id);
+                this.showToast(this.t('webSearchHolding', { name: this.getEngineName(e.id) }), 'info');
+                this.hideEnginePicker();
+            });
+            wrap.appendChild(item);
+        });
+        document.body.appendChild(wrap);
+        // 定位：优先点击坐标，超出视口则收边
+        const maxW = window.innerWidth - 16;
+        const maxH = window.innerHeight - 16;
+        const targetX = Math.max(8, Math.min(maxW - 40, x));
+        const targetY = Math.max(8, Math.min(maxH - 40, y));
+        wrap.style.left = targetX + 'px';
+        wrap.style.top  = targetY + 'px';
+        // 先占位定位，再对齐到右下方（弹出框贴住按钮右下展开）
+        requestAnimationFrame(() => {
+            const rect = wrap.getBoundingClientRect();
+            let left = targetX - rect.width + 8;
+            let top  = targetY + 10;
+            if (left < 8) left = 8;
+            if (top + rect.height > window.innerHeight - 8) top = Math.max(8, targetY - rect.height - 10);
+            if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - 8 - rect.width;
+            wrap.style.left = left + 'px';
+            wrap.style.top  = top  + 'px';
+            wrap.classList.add('visible');
+        });
+        // 任意外部点击/滚动 → 关闭
+        const closer = () => this.hideEnginePicker();
+        wrap._closer = closer;
+        document.addEventListener('click', closer, { once: true });
+        document.addEventListener('scroll', closer, { once: true, capture: true });
+    },
+
+    hideEnginePicker() {
+        const p = document.getElementById('enginePicker');
+        if (!p) return;
+        if (p._closer) {
+            document.removeEventListener('click', p._closer);
+            document.removeEventListener('scroll', p._closer, { capture: true });
+        }
+        p.remove();
+    },
+
     /**
      * 应用拖拽排序锁状态
      * 锁定时：隐藏所有拖拽手柄（CSS）+ 禁用 Sortable 实例（双保险）
@@ -400,6 +568,79 @@ const App = {
             Bookmarks.render();
             searchInput.focus();
         });
+
+        // 网络搜索按钮：点击 → 用默认引擎搜索；长按 450ms → 弹出选择器切换默认引擎
+        const btnWebSearch = document.getElementById('btnWebSearch');
+        let webPressTimer = null;
+        let webPressTriggered = false;
+        let webPressStartX = 0;
+        let webPressStartY = 0;
+        const clearWebPress = () => {
+            if (webPressTimer) { clearTimeout(webPressTimer); webPressTimer = null; }
+        };
+        const startWebPress = (ev) => {
+            webPressTriggered = false;
+            const pt = (ev.touches && ev.touches[0]) || ev;
+            webPressStartX = pt.clientX || 0;
+            webPressStartY = pt.clientY || 0;
+            const rect = btnWebSearch.getBoundingClientRect();
+            const px = webPressStartX || (rect.left + rect.width / 2);
+            const py = webPressStartY || (rect.bottom);
+            clearWebPress();
+            webPressTimer = setTimeout(() => {
+                webPressTriggered = true;
+                if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
+                this.showEnginePicker(px, py);
+            }, 450);
+        };
+        const cancelWebPressIfMoved = (ev) => {
+            const pt = (ev.touches && ev.touches[0]) || ev;
+            const dx = (pt.clientX || 0) - webPressStartX;
+            const dy = (pt.clientY || 0) - webPressStartY;
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) clearWebPress();
+        };
+        btnWebSearch.addEventListener('touchstart', startWebPress, { passive: true });
+        btnWebSearch.addEventListener('mousedown', startWebPress);
+        btnWebSearch.addEventListener('touchmove', cancelWebPressIfMoved, { passive: true });
+        btnWebSearch.addEventListener('mousemove', cancelWebPressIfMoved);
+        btnWebSearch.addEventListener('touchend', (e) => {
+            clearWebPress();
+            if (webPressTriggered) { e.preventDefault(); }
+        });
+        btnWebSearch.addEventListener('mouseup', clearWebPress);
+        btnWebSearch.addEventListener('mouseleave', clearWebPress);
+        btnWebSearch.addEventListener('touchcancel', clearWebPress);
+        btnWebSearch.addEventListener('click', (ev) => {
+            clearWebPress();
+            if (webPressTriggered) {
+                // 长按已触发选择器，不要再次点击搜索
+                ev.stopPropagation();
+                ev.preventDefault();
+                webPressTriggered = false;
+                return;
+            }
+            this.openWebSearch();
+        });
+        // 搜索框回车键：若有本地内容不打扰；若本地无结果且输入不为空 → 自动触发网络搜索
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            const q = (searchInput.value || '').trim();
+            if (!q) return;
+            const hasLocal = (Tree.searchResults && Tree.searchResults.length > 0)
+                || this.data.bookmarks.some(b =>
+                    b.title.toLowerCase().includes(q.toLowerCase())
+                    || b.url.toLowerCase().includes(q.toLowerCase()));
+            if (!hasLocal) this.openWebSearch();
+        });
+
+        // 配置弹窗：默认搜索引擎下拉
+        const selEl = document.getElementById('searchEngineSelect');
+        if (selEl) {
+            selEl.addEventListener('change', (ev) => {
+                this.setDefaultEngineId(ev.target.value);
+                this.showToast(this.t('webSearchHolding', { name: this.getEngineName(ev.target.value) }), 'success');
+            });
+        }
 
         // 拖拽排序总开关（锁）：解锁=显示 ⋮⋮ 并允许拖拽；锁定=隐藏手柄并禁用拖拽
         document.getElementById('btnLockDrag').addEventListener('click', () => {
@@ -585,6 +826,10 @@ const App = {
         if (formatExample && lang === 'en') {
             // 保持格式不变，只是 UI 语言变化
         }
+
+        // 语言切换后，同步刷新：配置下拉的引擎选项名、拖拽锁按钮 title
+        this.renderSearchEngineSelect();
+        this.applyDragLock();
     },
     
     /**
