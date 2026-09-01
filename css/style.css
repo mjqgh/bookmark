@@ -583,7 +583,20 @@ body.drag-locked .drag-handle {
 }
 
 .tree-children .tree-node {
+    position: relative;
     padding-left: 18px;
+}
+
+/* 层级缩进参考线：每级子级左侧一条淡灰细线，不增加颜色即可看清嵌套结构 */
+.tree-children .tree-node::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #e2e6ec;
+    pointer-events: none;
 }
 
 /* ==================== 内联收藏项（移动端显示，桌面隐藏） ==================== */
