@@ -10,6 +10,12 @@ const Tree = {
     onSelectFolder: null,
     onUpdate: null,
     tooltipElement: null,
+
+    // 文件夹图标 SVG（关闭=合口文件夹，打开=开口文件夹）
+    SVG_FOLDER_CLOSED: '<svg viewBox="0 0 1024 1024" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M868.7 264.6H530.8c-18.7 0-36.3-9.2-46.9-24.6L429 160.7c-10.7-15.4-28.2-24.6-46.9-24.6h-227c-31.5 0-57.1 25.5-57.1 57.1v585.2c0 63.1 51.1 114.2 114.2 114.2h605.9c60-1.4 107.5-51.4 107.5-111.4l0.2-416.6v-42.8c0-31.7-25.6-57.2-57.1-57.2z m-22 183.9c0 22.1-17.9 40-40 40H217.1c-22.1 0-40-17.9-40-40s17.9-40 40-40h589.5c22.2 0 40.1 18 40.1 40z"></path></svg>',
+    SVG_FOLDER_OPEN: '<svg viewBox="0 0 1024 1024" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M902.9 364.5h-11.1v-42.8c0-31.6-25.6-57.1-57.1-57.1H496.8c-18.7 0-36.3-9.2-46.9-24.6L395 160.7c-10.7-15.4-28.2-24.6-46.9-24.6h-227c-31.5 0-57.1 25.5-57.1 57.1v585.2c0 63.1 51.1 114.2 114.2 114.2h569.1c51.6 0 96.8-34.6 110.3-84.4L958 436.5c9.8-36.3-17.6-72-55.1-72z m-68.2 0H250.4c-25.8 0-48.3 17.3-55.1 42.2l-60.2 222.7c-2.1 8-14 6.5-14-1.9v-420c0-7.8 6.4-14.3 14.3-14.3h205.3c4.7 0 9.1 2.3 11.7 6.2l51.3 74c21.4 30.3 56.2 48.3 93.3 48.3h323.5c7.8 0 14.3 6.4 14.3 14.3v28.5z"></path></svg>',
+    // 收藏页（文件文档）图标
+    SVG_FILE: '<svg viewBox="0 0 1024 1024" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M587 0H160c-35.3 0-64 28.7-64 64v896c0 35.3 28.7 64 64 64h704c35.3 0 64-28.7 64-64V341c0-33.9-13.5-66.5-37.5-90.5l-213-213C653.5 13.5 620.9 0 587 0z m53 90.5L837.5 288H704c-35.3 0-64-28.7-64-64V90.5zM832 960H192c-17.7 0-32-14.3-32-32V96c0-17.7 14.3-32 32-32h384v160c0 70.7 57.3 128 128 128h160v576c0 17.7-14.3 32-32 32z"></path><path d="M760.5 544.5h-496c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h496c4.4 0 8 3.6 8 8v48c0 4.4-3.6 8-8 8zM761 705H265c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h496c4.4 0 8 3.6 8 8v48c0 4.4-3.6 8-8 8zM761 864H265c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h496c4.4 0 8 3.6 8 8v48c0 4.4-3.6 8-8 8z"></path></svg>',
     treeSortables: [],
     contextMenuFolderId: null,
     justDragged: false,
@@ -346,11 +352,11 @@ const Tree = {
         if (this.data.folders.length === 0) {
             container.innerHTML = `
                 <div class="tree-empty-state">
-                    <div class="tree-empty-icon">📂</div>
+                    <div class="tree-empty-icon">${this.SVG_FOLDER_CLOSED}</div>
                     <div class="tree-empty-text">暂无收藏夹</div>
                     <div class="tree-empty-actions">
                         <button class="btn btn-primary" id="emptyCreateFolder">
-                            <span>📁</span>
+                            <span>${this.SVG_FOLDER_CLOSED}</span>
                             <span>创建收藏夹</span>
                         </button>
                         <button class="btn btn-default" id="emptyCreateBookmark">
@@ -492,10 +498,10 @@ const Tree = {
         dragHandle.addEventListener('mouseleave', resetDragFlag);
         header.appendChild(dragHandle);
         
-        // 文件夹图标
+        // 文件夹图标（SVG：关闭=合口文件夹 / 打开=开口文件夹）
         const icon = document.createElement('span');
         icon.className = 'tree-icon ' + (isExpanded ? 'folder-open' : 'folder');
-        icon.textContent = isExpanded ? '📂' : '📁';
+        icon.innerHTML = isExpanded ? this.SVG_FOLDER_OPEN : this.SVG_FOLDER_CLOSED;
         header.appendChild(icon);
         
         // 文件夹名称
@@ -692,10 +698,10 @@ const Tree = {
                 dragHandle.title = '拖动排序';
                 item.appendChild(dragHandle);
 
-                // 文件图标（与收藏夹的📁图标完全对齐：font-size 14, margin-right 6）
+                // 收藏页图标（SVG 文档样式，与文件夹 SVG 完全对齐）
                 const icon = document.createElement('span');
                 icon.className = 'tree-icon tree-bookmark-file-icon';
-                icon.textContent = '📄';
+                icon.innerHTML = this.SVG_FILE;
                 item.appendChild(icon);
 
                 // 网站小 favicon + 标题（容器起点与 .tree-label 一致）

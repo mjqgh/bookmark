@@ -498,6 +498,9 @@ body.drag-locked .drag-handle {
     margin-right: 6px;
     font-size: 14px;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
 }
 
 .tree-icon.folder {
@@ -1473,6 +1476,19 @@ body.drag-locked .drag-handle {
 .trash-item-name {
     font-size: 14px;
     color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 回收站条目内的 SVG 图标与标题排版 */
+.trash-item-name svg {
+    flex-shrink: 0;
+}
+.trash-item-title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

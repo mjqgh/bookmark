@@ -14,6 +14,18 @@ const Trash = {
         this.bindEvents();
     },
 
+    /**
+     * HTML 转义（标题等用户输入经 innerHTML 拼接前必须转义）
+     */
+    escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
     bindEvents() {
         // 回收站入口按钮（侧栏顶栏）
         const btn = document.getElementById('btnTrash');
@@ -68,7 +80,8 @@ const Trash = {
         info.className = 'trash-item-info';
         const name = document.createElement('div');
         name.className = 'trash-item-name';
-        name.textContent = '📁 ' + (entry.folder ? entry.folder.name : '?');
+        name.innerHTML = '<span style="color:#f5a623;display:inline-flex">' + Tree.SVG_FOLDER_CLOSED + '</span>'
+            + '<span class="trash-item-title">' + this.escapeHtml(entry.folder ? entry.folder.name : '?') + '</span>';
         const meta = document.createElement('div');
         meta.className = 'trash-item-meta';
         meta.textContent = App.t('deletedFolderInfo', { N: this.countFolderChildren(entry) })
@@ -97,7 +110,8 @@ const Trash = {
         info.className = 'trash-item-info';
         const name = document.createElement('div');
         name.className = 'trash-item-name';
-        name.textContent = '📄 ' + (bm.title || bm.url);
+        name.innerHTML = '<span style="color:#8a97a6;display:inline-flex">' + Tree.SVG_FILE + '</span>'
+            + '<span class="trash-item-title">' + this.escapeHtml(bm.title || bm.url || '') + '</span>';
         const meta = document.createElement('div');
         meta.className = 'trash-item-meta';
         meta.textContent = bm.url + ' · ' + this.formatDate(bm.deletedAt);
