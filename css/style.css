@@ -351,7 +351,8 @@ body.resizing .resizer {
     transition: background 0.15s;
     border-radius: 0 4px 4px 0;
     margin-right: 8px;
-    touch-action: none;  /* 防止移动端默认手势干扰文件夹拖拽 */
+    /* touch-action 留给浏览器默认值，手指起点在文件夹行上也能滚动；
+       拖拽手柄 .tree-node-drag 单独设了 touch-action:none 防止拖拽时被手势干扰 */
 }
 
 .tree-node-header:hover {
