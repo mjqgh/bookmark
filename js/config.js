@@ -164,21 +164,21 @@ const Config = {
     /**
      * 处理导入内容（自动识别 txt 备份 / Chrome·Edge bookmarks.html）
      */
-    processImport(content) {
+    processImport(content, skipConfirm) {
         try {
             const result = this.isBookmarkHtml(content)
                 ? this.parseBookmarksHtml(content)
                 : this.parseData(content);
 
             if (!result.folders || result.folders.length === 0) {
-                App.showToast('导入失败：未找到有效的文件夹数据', 'error');
+                if (!skipConfirm) App.showToast('导入失败：未找到有效的文件夹数据', 'error');
                 return;
             }
             
             const count = result.bookmarks.length;
             const folderCount = this.countAllFolders(result.folders);
             
-            if (!confirm(`导入将覆盖现有数据。\n检测到 ${folderCount} 个文件夹，${count} 个收藏。\n是否继续？`)) {
+            if (!skipConfirm && !confirm(`导入将覆盖现有数据。\n检测到 ${folderCount} 个文件夹，${count} 个收藏。\n是否继续？`)) {
                 return;
             }
             

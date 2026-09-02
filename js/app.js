@@ -41,6 +41,20 @@ const App = {
             importFile: '从本地文件导入',
             importUrl: '从 URL 导入',
             urlPlaceholder: '输入在线 txt 文件 URL',
+            cloudSyncTitle: '云端自动同步',
+            cloudSyncEnabled: '启用自动拉取',
+            cloudProvider: '存储源',
+            cloudProviderCustom: '其他（自定义 URL）',
+            cloudRawUrl: 'txt 文件 URL',
+            cloudFetchUrl: '实际拉取地址（自动加速）',
+            cloudInterval: '拉取间隔',
+            cloudIntervalManual: '仅手动拉取',
+            cloudTestFetch: '立即拉取',
+            cloudSave: '保存配置',
+            cloudStatusFetching: '正在拉取...',
+            cloudStatusOk: '上次同步：',
+            cloudNeverSynced: '从未同步',
+            cloudHint: '首次使用：在 GitHub 新建仓库 + 上传 txt → 打开 raw 文件 → 复制 URL 粘贴到上面。数据完全由你自己掌握，我们不会存储你的任何数据。',
             exportSection: '导出',
             export: '导出为 txt 文件',
             formatSection: '文件格式说明',
@@ -121,6 +135,20 @@ const App = {
             importFile: 'Import from File',
             importUrl: 'Import from URL',
             urlPlaceholder: 'Enter txt file URL',
+            cloudSyncTitle: 'Cloud Auto Sync',
+            cloudSyncEnabled: 'Enable auto-fetch',
+            cloudProvider: 'Provider',
+            cloudProviderCustom: 'Other (Custom URL)',
+            cloudRawUrl: 'txt File URL',
+            cloudFetchUrl: 'Fetch URL (auto-accelerated)',
+            cloudInterval: 'Fetch Interval',
+            cloudIntervalManual: 'Manual only',
+            cloudTestFetch: 'Fetch Now',
+            cloudSave: 'Save Config',
+            cloudStatusFetching: 'Fetching...',
+            cloudStatusOk: 'Last sync: ',
+            cloudNeverSynced: 'Never synced',
+            cloudHint: 'First time: create a repo on GitHub + upload your txt → open the raw file → copy the URL above. Your data stays entirely with you.',
             exportSection: 'Export',
             export: 'Export to txt File',
             formatSection: 'File Format',
@@ -239,6 +267,10 @@ const App = {
         
         // 初始化侧边栏拖拽调整
         this.initResizer();
+
+        // 初始化云端同步（P0）
+        CloudSync.init();
+        this.initCloudSyncUI();
         
         // 窗口宽度跨越 768px 阈值时，保持用户上次的展开状态，
         // 只确保被选中的文件夹本身及父路径可见（不至于切换视口后找不到当前选中项）
@@ -420,6 +452,101 @@ const App = {
             opt.textContent = this.getEngineName(opt.value);
         });
         sel.value = current;
+    },
+
+    /**
+     * 云端同步 UI 事件绑定（P0）
+     */
+    initCloudSyncUI() {
+        const enabledCb = document.getElementById('cloudSyncEnabled');
+        const providerSel = document.getElementById('cloudProvider');
+        const rawUrlInput = document.getElementById('cloudRawUrl');
+        const intervalSel = document.getElementById('cloudInterval');
+        const fetchUrlRow = document.getElementById('cloudFetchUrlRow');
+        const fetchUrlCode = document.getElementById('cloudFetchUrl');
+        const statusEl = document.getElementById('cloudStatus');
+        const btnSave = document.getElementById('cloudSaveConfig');
+        const btnTest = document.getElementById('cloudTestFetch');
+
+        // 填充已有配置到表单
+        const fillForm = () => {
+            const cfg = CloudSync.getConfig();
+            enabledCb.checked = !!cfg.enabled;
+            providerSel.value = cfg.provider || 'github';
+            rawUrlInput.value = cfg.rawUrl || '';
+            intervalSel.value = String(cfg.intervalMin || 15);
+            statusEl.textContent = CloudSync.formatLastFetch();
+            if (cfg.lastFetchTs) statusEl.classList.add('has-fetch');
+            else statusEl.classList.remove('has-fetch');
+            updateFetchUrlPreview();
+        };
+
+        // 实时预览：raw URL → jsDelivr 转换
+        const updateFetchUrlPreview = () => {
+            const raw = rawUrlInput.value.trim();
+            const provider = providerSel.value;
+            if (!raw) {
+                fetchUrlRow.style.display = 'none';
+                return;
+            }
+            const fetched = CloudSync._buildFetchUrl(raw, provider);
+            if (fetched !== raw) {
+                fetchUrlCode.textContent = fetched;
+                fetchUrlRow.style.display = '';
+            } else {
+                fetchUrlRow.style.display = 'none';
+            }
+        };
+
+        // 事件绑定
+        rawUrlInput.addEventListener('input', updateFetchUrlPreview);
+        providerSel.addEventListener('change', updateFetchUrlPreview);
+
+        btnSave.addEventListener('click', () => {
+            const rawUrl = rawUrlInput.value.trim();
+            if (!rawUrl) {
+                App.showToast('请先填写 txt 文件 URL', 'error');
+                return;
+            }
+            const newCfg = CloudSync.saveConfig({
+                enabled: enabledCb.checked,
+                provider: providerSel.value,
+                rawUrl: rawUrl,
+                intervalMin: parseInt(intervalSel.value, 10) || 15
+            });
+            statusEl.textContent = CloudSync.formatLastFetch();
+            App.showToast('配置已保存' + (newCfg.enabled ? '，启用自动拉取' : ''), 'success');
+        });
+
+        btnTest.addEventListener('click', async () => {
+            if (!rawUrlInput.value.trim()) {
+                App.showToast('请先填写 txt 文件 URL', 'error');
+                return;
+            }
+            // 先保存再拉取（用最新表单值）
+            CloudSync.saveConfig({
+                enabled: enabledCb.checked,
+                provider: providerSel.value,
+                rawUrl: rawUrlInput.value.trim(),
+                intervalMin: parseInt(intervalSel.value, 10) || 15
+            });
+            const result = await CloudSync.fetchManual();
+            if (result.ok) {
+                statusEl.textContent = CloudSync.formatLastFetch();
+                statusEl.classList.add('has-fetch');
+                // 拉取成功 → 存本地快照（冲突检测基准）
+                CloudSync._saveLocalSnapshot();
+            }
+        });
+
+        // 配置弹窗打开时填充
+        document.getElementById('btnConfig').addEventListener('click', () => {
+            // 延迟一帧让 modal 先渲染
+            setTimeout(fillForm, 0);
+        });
+
+        // 初始填充一次（首次打开配置前就有配置的情况）
+        fillForm();
     },
 
     /**

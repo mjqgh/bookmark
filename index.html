@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=36">
+    <link rel="stylesheet" href="css/style.css?v=37">
 </head>
 <body>
     <div class="app">
@@ -85,6 +85,62 @@
                             <input type="text" id="urlInput" class="text-input" data-i18n-placeholder="urlPlaceholder" placeholder="输入在线 txt 文件 URL">
                             <button class="btn btn-primary" id="btnImportUrl" data-i18n="importUrl">从 URL 导入</button>
                         </div>
+                    </div>
+                </div>
+                <div class="config-section cloud-sync-section">
+                    <h4>☁️ <span data-i18n="cloudSyncTitle">云端自动同步</span></h4>
+                    <div class="config-options">
+                        <label class="cloud-sync-enable">
+                            <input type="checkbox" id="cloudSyncEnabled">
+                            <span data-i18n="cloudSyncEnabled">启用自动拉取</span>
+                        </label>
+                    </div>
+                    <div class="config-options">
+                        <label class="cloud-field">
+                            <span class="cloud-label" data-i18n="cloudProvider">存储源</span>
+                            <select id="cloudProvider" class="text-input cloud-input">
+                                <option value="github">GitHub (jsDelivr 加速)</option>
+                                <option value="webdav">WebDAV（坚果云/Nextcloud）</option>
+                                <option value="qiniu">七牛云 / 阿里云 OSS</option>
+                                <option value="custom" data-i18n="cloudProviderCustom">其他（自定义 URL）</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="config-options">
+                        <label class="cloud-field">
+                            <span class="cloud-label" data-i18n="cloudRawUrl">txt 文件 URL</span>
+                            <input type="text" id="cloudRawUrl" class="text-input cloud-input" placeholder="https://raw.githubusercontent.com/用户名/仓库/main/bookmarks.txt">
+                        </label>
+                    </div>
+                    <div class="config-options cloud-fetch-url-row" id="cloudFetchUrlRow" style="display:none">
+                        <label class="cloud-field">
+                            <span class="cloud-label" data-i18n="cloudFetchUrl">实际拉取地址（自动加速）</span>
+                            <code id="cloudFetchUrl" class="cloud-fetch-url"></code>
+                        </label>
+                    </div>
+                    <div class="config-options">
+                        <label class="cloud-field">
+                            <span class="cloud-label" data-i18n="cloudInterval">拉取间隔</span>
+                            <select id="cloudInterval" class="text-input cloud-input">
+                                <option value="5">5 分钟</option>
+                                <option value="15" selected>15 分钟</option>
+                                <option value="30">30 分钟</option>
+                                <option value="60">1 小时</option>
+                                <option value="0" data-i18n="cloudIntervalManual">仅手动拉取</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="config-options cloud-status-row">
+                        <span class="cloud-status" id="cloudStatus">
+                            <span data-i18n="cloudNeverSynced">从未同步</span>
+                        </span>
+                        <div class="cloud-btn-group">
+                            <button class="btn btn-default" id="cloudTestFetch" data-i18n="cloudTestFetch">立即拉取</button>
+                            <button class="btn btn-primary" id="cloudSaveConfig" data-i18n="cloudSave">保存配置</button>
+                        </div>
+                    </div>
+                    <div class="cloud-hint" data-i18n="cloudHint">
+                        首次使用：在 GitHub 新建仓库 + 上传 txt → 打开 raw 文件 → 复制 URL 粘贴到上面。数据完全由你自己掌握，我们不会存储你的任何数据。
                     </div>
                 </div>
                 <div class="config-section">
@@ -316,8 +372,9 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/storage.js?v=4"></script>
     <script src="js/tree.js?v=52"></script>
     <script src="js/bookmarks.js?v=14"></script>
-    <script src="js/config.js?v=4"></script>
+    <script src="js/config.js?v=5"></script>
+    <script src="js/cloudSync.js?v=3"></script>
     <script src="js/trash.js?v=2"></script>
-    <script src="js/app.js?v=22"></script>
+    <script src="js/app.js?v=23"></script>
 </body>
 </html>

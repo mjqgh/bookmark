@@ -1178,6 +1178,94 @@ body.drag-locked .drag-handle {
     flex: 1;
 }
 
+/* ==================== 云端同步区块 ==================== */
+.cloud-sync-section {
+    border-top: 1px dashed #e0e0e0;
+    padding-top: 16px;
+}
+
+.cloud-sync-enable {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    color: #555;
+}
+.cloud-sync-enable input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.cloud-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    max-width: 520px;
+}
+.cloud-label {
+    font-size: 12px;
+    color: #888;
+    font-weight: 500;
+}
+.cloud-input {
+    width: 100%;
+}
+
+.cloud-fetch-url-row .cloud-fetch-url {
+    display: block;
+    background: #f0f7ff;
+    border: 1px solid #d0e3ff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 12px;
+    color: #1a5bc7;
+    word-break: break-all;
+    line-height: 1.5;
+    max-height: 60px;
+    overflow-y: auto;
+}
+
+.cloud-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 520px;
+}
+
+.cloud-status {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+.cloud-status.has-fetch {
+    color: #2e7d32;
+}
+
+.cloud-btn-group {
+    display: flex;
+    gap: 8px;
+}
+
+.cloud-hint {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #fffde7;
+    border-left: 3px solid #f9a825;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #6d4c00;
+    line-height: 1.6;
+    max-width: 520px;
+}
+
+
 .format-example {
     background: #f5f5f5;
     padding: 12px;
