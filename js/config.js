@@ -209,12 +209,20 @@ const Config = {
                 Bookmarks.render();
             }
             
-            document.getElementById('configModal').classList.remove('active');
-            App.showToast(`导入成功：${folderCount} 个文件夹，${count} 个收藏`, 'success');
-            
+            // skipConfirm=true 表示云端拉取（自动/手动云同步），由调用方自行决定提示：
+            // 自动拉取静默不打扰；手动云拉取在 fetchManual 里有独立 toast。
+            // 只有本地文件导入（skipConfirm 为假）才关弹窗 + 弹"导入成功"。
+            if (!skipConfirm) {
+                document.getElementById('configModal').classList.remove('active');
+                App.showToast(`导入成功：${folderCount} 个文件夹，${count} 个收藏`, 'success');
+            }
+
         } catch (err) {
             console.error('导入解析错误:', err);
-            App.showToast('导入失败：' + err.message, 'error');
+            // 静默模式（自动云拉取）不弹错误提示，仅记录日志
+            if (!skipConfirm) {
+                App.showToast('导入失败：' + err.message, 'error');
+            }
         }
     },
     
