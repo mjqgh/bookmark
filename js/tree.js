@@ -104,13 +104,18 @@ const Tree = {
             });
         }
         
-        // 全局：点击其他地方关闭文件夹右键菜单
-        document.addEventListener('click', (e) => {
+        // 全局：点击/触摸其他地方关闭文件夹右键菜单
+        // 【移动端】长按弹出菜单后，外部点击可能落在调用了 stopPropagation 的元素上
+        // （文件夹/收藏条目），click 永远到不了 document；且部分浏览器长按后不再合成
+        // click。故补充 touchstart 监听：触摸起点在菜单外即关闭，不依赖 click 合成。
+        const closeTreeMenuOnOutside = (e) => {
             const menu = document.getElementById('treeContextMenu');
             if (menu.classList.contains('active') && !menu.contains(e.target)) {
                 this.hideTreeContextMenu();
             }
-        });
+        };
+        document.addEventListener('click', closeTreeMenuOnOutside);
+        document.addEventListener('touchstart', closeTreeMenuOnOutside, { passive: true });
         
         // 全局：Escape 关闭文件夹右键菜单
         document.addEventListener('keydown', (e) => {

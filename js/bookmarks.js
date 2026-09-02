@@ -144,13 +144,17 @@ const Bookmarks = {
             }
         });
         
-        // 全局：点击其他地方关闭右键菜单
-        document.addEventListener('click', (e) => {
+        // 全局：点击/触摸其他地方关闭右键菜单
+        // 【移动端】长按弹出菜单后，外部点击可能落在 stopPropagation 元素上或
+        // 不合成 click，补充 touchstart 监听兜底（触摸起点在菜单外即关闭）
+        const closeBmMenuOnOutside = (e) => {
             const menu = document.getElementById('bookmarkContextMenu');
             if (menu.classList.contains('active') && !menu.contains(e.target)) {
                 this.hideContextMenu();
             }
-        });
+        };
+        document.addEventListener('click', closeBmMenuOnOutside);
+        document.addEventListener('touchstart', closeBmMenuOnOutside, { passive: true });
         
         // 全局：Escape 键关闭右键菜单
         document.addEventListener('keydown', (e) => {

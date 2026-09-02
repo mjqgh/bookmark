@@ -618,19 +618,31 @@ const App = {
             wrap.style.top  = top  + 'px';
             wrap.classList.add('visible');
         });
-        // 任意外部点击/滚动 → 关闭
-        const closer = () => this.hideEnginePicker();
-        wrap._closer = closer;
-        document.addEventListener('click', closer, { once: true });
-        document.addEventListener('scroll', closer, { once: true, capture: true });
+        // 任意外部触摸/点击/滚动 → 关闭
+        // 【移动端】长按弹出后手指抬起可能合成 click 落在本按钮上；外部点击又可能
+        // 落在 stopPropagation 元素上或根本不合成 click。故用非 once 监听 + 在
+        // hideEnginePicker 中统一移除，touchstart 作为主要关闭信号（不依赖 click）。
+        const closer = (e) => {
+            // 触摸/点击发生在选择器内部 → 交给条目自己的 click 处理，不关闭
+            if (e && e.target && wrap.contains(e.target)) return;
+            // 长按弹出瞬间，手指抬起合成的 click 落在 🌐 按钮上 → 不关闭
+            const btn = document.getElementById('btnWebSearch');
+            if (e && e.type === 'click' && btn && btn.contains(e.target)) return;
+            this.hideEnginePicker();
+        };
+        wrap._closers = closer;
+        document.addEventListener('click', closer);
+        document.addEventListener('touchstart', closer, { passive: true });
+        document.addEventListener('scroll', closer, { capture: true });
     },
 
     hideEnginePicker() {
         const p = document.getElementById('enginePicker');
         if (!p) return;
-        if (p._closer) {
-            document.removeEventListener('click', p._closer);
-            document.removeEventListener('scroll', p._closer, { capture: true });
+        if (p._closers) {
+            document.removeEventListener('click', p._closers);
+            document.removeEventListener('touchstart', p._closers);
+            document.removeEventListener('scroll', p._closers, { capture: true });
         }
         p.remove();
     },
