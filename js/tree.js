@@ -413,7 +413,25 @@ const Tree = {
         }
         return null;
     },
-    
+
+    /**
+     * 按文件夹名路径查找文件夹（用于云拉取后恢复选中/展开状态——
+     * txt 同步不携带 ID，每次导入 ID 都是新生成的，只能按路径匹配）
+     * @param {string[]} names 如 ['工作类', '在线工具']
+     * @returns {object|null} 新数据中的文件夹对象
+     */
+    findFolderByPath(names, folders = this.data.folders) {
+        if (!names || !names.length) return null;
+        let current = folders;
+        let target = null;
+        for (const name of names) {
+            target = (current || []).find(f => f.name === name);
+            if (!target) return null;
+            current = target.children;
+        }
+        return target;
+    },
+
     /**
      * 更新移动端面包屑（显示当前选中文件夹路径，可点击跳转）
      */

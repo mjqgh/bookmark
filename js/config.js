@@ -181,38 +181,109 @@ const Config = {
             if (!skipConfirm && !confirm(`导入将覆盖现有数据。\n检测到 ${folderCount} 个文件夹，${count} 个收藏。\n是否继续？`)) {
                 return;
             }
-            
+
+            // 静默模式（云端自动拉取）：导入前快照 UI 状态。
+            // txt 同步不携带 ID（每次解析都重新生成），所以按【文件夹名路径】快照，
+            // 导入后按路径在新数据中找回对应文件夹，恢复选中/展开/搜索/滚动位置，
+            // 避免用户正在浏览某文件夹时被"跳回第一个文件夹"打断。
+            let uiState = null;
+            if (skipConfirm) {
+                const toPath = (folderId) => {
+                    const p = folderId ? Tree.getFolderPath(folderId) : null;
+                    return p ? p.map(x => x.name) : [];
+                };
+                const expandedPaths = [];
+                (Tree.expandedNodes || []).forEach(id => {
+                    const p = Tree.getFolderPath(id);
+                    if (p) expandedPaths.push(p.map(x => x.name));
+                });
+                uiState = {
+                    selectedPath: toPath(Tree.selectedFolderId),
+                    expandedPaths: expandedPaths,
+                    searchQuery: Tree.searchQuery || '',
+                    folderSelectedInSearch: !!Bookmarks.folderSelectedInSearch,
+                    treeScrollTop: document.getElementById('folderTree').scrollTop,
+                    listScrollTop: document.getElementById('bookmarkList').scrollTop
+                };
+            }
+
             // 更新数据
             this.data.folders = result.folders;
             this.data.bookmarks = result.bookmarks;
-            
+
             // 重建 folderOrder 排序数据
             Storage.ensureDataCompatible(this.data);
-            
-            // 清空展开状态
-            Tree.expandedNodes.clear();
-            this.data.folders.forEach(f => Tree.expandedNodes.add(f.id));
-            Tree.selectedFolderId = this.data.folders.length > 0 ? this.data.folders[0].id : null;
-            
-            // 保存
-            Storage.save(this.data);
-            
-            // 重新渲染
+
             Tree.data = this.data;
-            Tree.render();
             Bookmarks.data = this.data;
-            
-            // 设置当前选中的文件夹
-            if (Tree.selectedFolderId) {
-                Bookmarks.setFolder(Tree.selectedFolderId);
+
+            if (skipConfirm && uiState) {
+                // ===== 云端拉取：恢复用户原浏览状态 =====
+                // 1) 恢复展开状态：路径仍存在的文件夹保持展开，云端已删除的自然丢弃，新增的保持折叠
+                Tree.expandedNodes = new Set();
+                uiState.expandedPaths.forEach(names => {
+                    const f = Tree.findFolderByPath(names);
+                    if (f) Tree.expandedNodes.add(f.id);
+                });
+
+                // 2) 恢复选中：原文件夹路径仍在则选中它，否则回退第一个
+                let targetId = null;
+                if (uiState.selectedPath.length) {
+                    const f = Tree.findFolderByPath(uiState.selectedPath);
+                    if (f) targetId = f.id;
+                }
+                if (!targetId && this.data.folders.length) targetId = this.data.folders[0].id;
+                Tree.selectedFolderId = targetId;
+
+                // 保存
+                Storage.save(this.data);
+
+                // 3) 重新渲染（搜索态由 Tree.search 处理展开快照并 render）
+                if (uiState.searchQuery) {
+                    Tree.search(uiState.searchQuery);
+                    // 搜索中若用户此前点进了某个文件夹 → 显示该文件夹内容；否则保持全库搜索结果
+                    Bookmarks.folderSelectedInSearch = uiState.folderSelectedInSearch && !!targetId;
+                    Bookmarks.currentFolderId = targetId;
+                    Bookmarks.render();
+                } else {
+                    Tree.searchQuery = '';
+                    Tree.render();
+                    if (targetId) {
+                        Bookmarks.setFolder(targetId);
+                    } else {
+                        Bookmarks.render();
+                    }
+                }
+
+                // 4) 渲染完成后再恢复滚动位置（DOM 重建后立即设置不生效）
+                requestAnimationFrame(() => {
+                    const ft = document.getElementById('folderTree');
+                    const bl = document.getElementById('bookmarkList');
+                    if (ft) ft.scrollTop = uiState.treeScrollTop || 0;
+                    if (bl) bl.scrollTop = uiState.listScrollTop || 0;
+                });
             } else {
-                Bookmarks.render();
-            }
-            
-            // skipConfirm=true 表示云端拉取（自动/手动云同步），由调用方自行决定提示：
-            // 自动拉取静默不打扰；手动云拉取在 fetchManual 里有独立 toast。
-            // 只有本地文件导入（skipConfirm 为假）才关弹窗 + 弹"导入成功"。
-            if (!skipConfirm) {
+                // ===== 本地文件/URL 导入：原行为（全部展开 + 选中第一个文件夹）=====
+                Tree.expandedNodes.clear();
+                this.data.folders.forEach(f => Tree.expandedNodes.add(f.id));
+                Tree.selectedFolderId = this.data.folders.length > 0 ? this.data.folders[0].id : null;
+
+                // 保存
+                Storage.save(this.data);
+
+                // 重新渲染
+                Tree.render();
+
+                // 设置当前选中的文件夹
+                if (Tree.selectedFolderId) {
+                    Bookmarks.setFolder(Tree.selectedFolderId);
+                } else {
+                    Bookmarks.render();
+                }
+
+                // skipConfirm=true 表示云端拉取（自动/手动云同步），由调用方自行决定提示：
+                // 自动拉取静默不打扰；手动云拉取在 fetchManual 里有独立 toast。
+                // 只有本地文件导入（skipConfirm 为假）才关弹窗 + 弹"导入成功"。
                 document.getElementById('configModal').classList.remove('active');
                 App.showToast(`导入成功：${folderCount} 个文件夹，${count} 个收藏`, 'success');
             }
