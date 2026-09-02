@@ -118,22 +118,48 @@ const CloudSync = {
     /**
      * GitHub raw URL → jsDelivr CDN URL
      * 
-     * raw 格式: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path...}
-     * jsDelivr: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path...}
+     * GitHub 有三种 raw URL 格式：
+     *   旧版: https://raw.githubusercontent.com/owner/repo/main/path/to/file.txt
+     *   新版: https://raw.githubusercontent.com/owner/repo/refs/heads/main/path/to/file.txt
+     *   标签: https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0/path/to/file.txt
+     * 
+     * jsDelivr 只认 branch/tag 名，不认 refs/heads/ 前缀
+     *   https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path...}
      */
     _githubRawToJsDelivr(raw) {
         try {
             const url = new URL(raw);
             const path = url.pathname.split('/').filter(Boolean);
-            // path = [owner, repo, branch, ...filePath]
-            if (path.length < 3) return raw; // 格式不对，原样返回
+            if (path.length < 3) return raw;
+
             const owner = path[0];
             const repo = path[1];
-            const branch = path[2];
-            const filePath = path.slice(3).join('/');
+            let branch, fileStartIdx;
+
+            // 判断 branch 的位置
+            if (path[2] === 'refs' && path[3] === 'heads' && path.length >= 4) {
+                // refs/heads/main/... 新版分支格式
+                branch = path[4];
+                fileStartIdx = 5;
+            } else if (path[2] === 'refs' && path[3] === 'tags' && path.length >= 4) {
+                // refs/tags/v1.0/... 标签格式
+                branch = path[4];
+                fileStartIdx = 5;
+            } else if (path[2] === 'refs' && path[3] === 'pull' && path[5] === 'head' && path.length >= 6) {
+                // refs/pull/123/head PR 特殊处理——jsDelivr 不认，fallback 用 main
+                // 但这种场景极罕见，用户应该用正常分支
+                branch = 'main';
+                fileStartIdx = 6;
+            } else {
+                // 旧版 main/... 直接就是 branch
+                branch = path[2];
+                fileStartIdx = 3;
+            }
+
+            const filePath = path.slice(fileStartIdx).join('/');
             return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${filePath}`;
         } catch (e) {
-            return raw; // URL 格式不对就原样返回
+            return raw;
         }
     },
 
@@ -292,12 +318,19 @@ const CloudSync = {
     // =====================================================
     _startAutoFetch() {
         this._stopAutoFetch();
-        const interval = (this._config.intervalMin || 15) * 60 * 1000;
-        this._timer = setInterval(() => this.fetchSilent(), interval);
+        const self = this;
+        const scheduleNext = () => {
+            const interval = (this._config.intervalMin || 15) * 60 * 1000;
+            self._timer = setTimeout(async () => {
+                await self.fetchSilent();
+                if (self._config.enabled) scheduleNext(); // 递归排下一次
+            }, interval);
+        };
+        scheduleNext();
     },
     _stopAutoFetch() {
         if (this._timer) {
-            clearInterval(this._timer);
+            clearTimeout(this._timer);
             this._timer = null;
         }
     },
@@ -307,11 +340,12 @@ const CloudSync = {
     // =====================================================
     _friendlyError(err) {
         const msg = err.message || String(err);
-        if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('TypeError')) {
-            return '网络错误或 CORS 限制。GitHub 链接请使用 jsDelivr 加速后的 CDN URL；WebDAV 需服务端支持跨域';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('TypeError') || msg.includes('ORB')) {
+            return '网络错误或 CORS/ORB 拦截。GitHub URL 请选"GitHub (jsDelivr 加速)"存储源，raw.githubusercontent.com 不支持跨域；jsDelivr 和国内七牛/OSS 均自带 CORS' ;
         }
-        if (msg.includes('HTTP 404')) return 'URL 找不到文件（404）';
-        if (msg.includes('HTTP 403')) return '无权访问（403）';
+        if (msg.includes('HTTP 404')) return 'URL 找不到文件（404）—— 检查仓库路径、分支名和文件名是否正确';
+        if (msg.includes('HTTP 403')) return '无权访问（403）—— 可能是私有仓库或文件权限限制';
+        if (msg.includes('HTTP 400')) return '请求错误（400）—— 可能是 jsDelivr CDN 上文件未同步，等待几分钟或确认文件已存在';
         return msg;
     },
 
