@@ -836,10 +836,22 @@ const Tree = {
      * 搜索/过滤
      */
     search(query) {
+        const wasSearching = !!this.searchQuery;
         this.searchQuery = query.toLowerCase();
         if (this.searchQuery) {
+            // 首次进入搜索 → 保存搜索前的展开状态快照
+            if (!wasSearching) {
+                this.preSearchExpanded = new Set(this.expandedNodes);
+            }
             // 展开所有匹配的节点
             this.expandMatchingNodes();
+        } else {
+            // 清除搜索 → 恢复搜索前的展开状态
+            if (wasSearching && this.preSearchExpanded) {
+                this.expandedNodes = new Set(this.preSearchExpanded);
+                this.persistExpanded();
+                this.preSearchExpanded = null;
+            }
         }
         this.render();
     },
