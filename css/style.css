@@ -297,11 +297,11 @@ body.resizing .resizer {
 /* 网络搜索按钮（始终显示在搜索框内最右侧） */
 .search-web-btn {
     position: absolute;
-    right: 4px;
+    right: 2px;
     top: 50%;
     transform: translateY(-50%);
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     border: none;
     border-radius: 50%;
     background: transparent;
