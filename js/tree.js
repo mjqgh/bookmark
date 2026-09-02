@@ -665,8 +665,9 @@ const Tree = {
 
             const order = (this.data.folderOrder && this.data.folderOrder[folder.id]) || [];
             let bookmarksInFolder = this.data.bookmarks.filter(b => b.folderId === folder.id);
-            // 搜索时：仅保留标题或 URL 匹配的收藏
-            if (this.searchQuery) {
+            // 搜索时：文件夹名本身匹配关键词 → 展示该文件夹下全部收藏；
+            // 否则（子孙匹配导致节点显示）→ 仅保留标题/URL 匹配的收藏
+            if (this.searchQuery && !folder.name.toLowerCase().includes(this.searchQuery)) {
                 bookmarksInFolder = bookmarksInFolder.filter(b =>
                     b.title.toLowerCase().includes(this.searchQuery) ||
                     b.url.toLowerCase().includes(this.searchQuery)
