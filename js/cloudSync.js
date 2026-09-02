@@ -231,18 +231,17 @@ const CloudSync = {
     },
 
     /**
-     * 实际 fetch 逻辑，带 ETag 条件请求
+     * 实际 fetch 逻辑
+     * 
+     * 关键点：绝对不能手动加自定义 headers（如 Accept / If-None-Match），
+     * 否则会触发浏览器发 OPTIONS 预检请求，而 GitHub raw 域名对 OPTIONS 返回 403。
      * 
      * 策略：
-     * 1. 先用加速 URL（jsDelivr / CDN）fetch
-     * 2. 如果加速 URL 被 ORB 拦截或 CORS 失败，fallback 到 raw URL
+     * 1. 不带自定义 headers → 不会发 OPTIONS 预检 → 直接 GET → 能拿到数据
+     * 2. cache: 'no-cache' → 告诉浏览器每次都向服务器发条件请求（自动带 If-None-Match）
+     * 3. jsDelivr 失败 → fallback 到 raw URL
      */
     async _doFetch() {
-        const headers = { 'Accept': 'text/plain, */*' };
-        if (this._config.lastETag) {
-            headers['If-None-Match'] = this._config.lastETag;
-        }
-
         const urlsToTry = [];
         if (this._config.fetchUrl && this._config.fetchUrl !== this._config.rawUrl) {
             urlsToTry.push(this._config.fetchUrl); // 加速 URL 优先
@@ -254,7 +253,12 @@ const CloudSync = {
         let lastErr = null;
         for (const url of urlsToTry) {
             try {
-                const resp = await fetch(url, { headers, mode: 'cors' });
+                // 不带任何自定义 headers！避免触发 OPTIONS 预检
+                // cache: 'no-cache' 让浏览器自动发 If-None-Match 条件请求
+                const resp = await fetch(url, { 
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
 
                 if (resp.status === 304) {
                     return { changed: false, content: null };
@@ -272,7 +276,6 @@ const CloudSync = {
             } catch (e) {
                 lastErr = e;
                 console.warn('[CloudSync] fetch failed for', url, ':', e.message);
-                // 继续 fallback 到下一个 URL
             }
         }
         throw lastErr || new Error('所有 URL 均拉取失败');
