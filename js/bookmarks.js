@@ -335,6 +335,8 @@ const Bookmarks = {
      */
     setFolder(folderId) {
         this.currentFolderId = folderId;
+        // 搜索中点击文件夹 → 切换回"文件夹内容视图"（而非全库搜索结果视图）
+        this.folderSelectedInSearch = !!(Tree.searchQuery && folderId);
         this.render();
     },
     
@@ -350,7 +352,9 @@ const Bookmarks = {
         
         // 搜索关键词：以 Tree.searchQuery 为真源，与左侧树搜索保持一致
         const searchQuery = (Tree.searchQuery || '').toLowerCase();
-        const isSearchMode = !!searchQuery;
+        // 搜索模式 = 有关键词 且 用户没有在搜索中点击某个文件夹
+        // （搜索中点击文件夹 → 显示该文件夹完整内容，不再是全库搜索结果）
+        const isSearchMode = !!searchQuery && !this.folderSelectedInSearch;
         
         if (isSearchMode) {
             // 【P0 修复】搜索结果是跨文件夹的混合列表，与 folderOrder 索引不对应，

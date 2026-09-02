@@ -556,6 +556,8 @@ const App = {
             const query = e.target.value;
             // 有内容时显示清除按钮
             searchBox.classList.toggle('has-text', query.length > 0);
+            // 每次输入变化 → 回到搜索结果视图（放弃之前在搜索中选中的文件夹）
+            Bookmarks.folderSelectedInSearch = false;
             Tree.search(query);
             Bookmarks.render();
         });
@@ -621,16 +623,24 @@ const App = {
             }
             this.openWebSearch();
         });
-        // 搜索框回车键：若有本地内容不打扰；若本地无结果且输入不为空 → 自动触发网络搜索
+        // 搜索框回车键：若本地收藏无匹配且文件夹也无匹配 → 触发网络搜索
         searchInput.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;
             const q = (searchInput.value || '').trim();
             if (!q) return;
-            const hasLocal = (Tree.searchResults && Tree.searchResults.length > 0)
-                || this.data.bookmarks.some(b =>
-                    b.title.toLowerCase().includes(q.toLowerCase())
-                    || b.url.toLowerCase().includes(q.toLowerCase()));
-            if (!hasLocal) this.openWebSearch();
+            const ql = q.toLowerCase();
+            // 收藏标题/URL 匹配 OR 文件夹名匹配
+            const hasBookmarkHit = this.data.bookmarks.some(b =>
+                b.title.toLowerCase().includes(ql)
+                || b.url.toLowerCase().includes(ql));
+            const hasFolderHit = (function walk(folders) {
+                for (const f of folders) {
+                    if (f.name.toLowerCase().includes(ql)) return true;
+                    if (f.children && walk(f.children)) return true;
+                }
+                return false;
+            })(this.data.folders);
+            if (!hasBookmarkHit && !hasFolderHit) this.openWebSearch();
         });
 
         // 配置弹窗：默认搜索引擎下拉
