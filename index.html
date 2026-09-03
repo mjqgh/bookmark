@@ -81,10 +81,6 @@
                     <div class="config-options">
                         <button class="btn btn-primary" id="btnImportFile" data-i18n="importFile">从本地文件导入</button>
                         <input type="file" id="importFileInput" accept=".txt,.html,.htm" style="display:none">
-                        <div class="url-import">
-                            <input type="text" id="urlInput" class="text-input" data-i18n-placeholder="urlPlaceholder" placeholder="输入在线 txt 文件 URL">
-                            <button class="btn btn-primary" id="btnImportUrl" data-i18n="importUrl">从 URL 导入</button>
-                        </div>
                     </div>
                 </div>
                 <div class="config-section cloud-sync-section">
@@ -145,7 +141,10 @@
                 </div>
                 <div class="config-section">
                     <h4 data-i18n="exportSection">导出</h4>
-                    <button class="btn btn-primary" id="btnExport" data-i18n="export">导出为 txt 文件</button>
+                    <div class="config-options">
+                        <button class="btn btn-primary" id="btnExportTxt" data-i18n="exportTxt">导出为 txt</button>
+                        <button class="btn btn-default" id="btnExportHtml" data-i18n="exportHtml">导出为 html（浏览器书签格式）</button>
+                    </div>
                 </div>
                 <div class="config-section">
                     <h4 data-i18n="trash">回收站</h4>
@@ -372,9 +371,9 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/storage.js?v=4"></script>
     <script src="js/tree.js?v=54"></script>
     <script src="js/bookmarks.js?v=15"></script>
-    <script src="js/config.js?v=7"></script>
+    <script src="js/config.js?v=9"></script>
     <script src="js/cloudSync.js?v=7"></script>
     <script src="js/trash.js?v=2"></script>
-    <script src="js/app.js?v=25"></script>
+    <script src="js/app.js?v=27"></script>
 </body>
 </html>

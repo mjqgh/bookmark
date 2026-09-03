@@ -1,5 +1,5 @@
 /**
- * 配置模块 - 导出、导入、在线加载
+ * 配置模块 - 导出、本地文件导入（txt / html）
  */
 
 const Config = {
@@ -38,27 +38,20 @@ const Config = {
             e.target.value = ''; // 重置
         });
         
-        // URL 导入按钮
-        document.getElementById('btnImportUrl').addEventListener('click', () => {
-            const url = document.getElementById('urlInput').value.trim();
-            if (!url) {
-                App.showToast('请输入 URL', 'error');
-                return;
-            }
-            this.importFromUrl(url);
-        });
-        
         // 导出按钮
-        document.getElementById('btnExport').addEventListener('click', () => {
-            this.exportToFile();
+        document.getElementById('btnExportTxt').addEventListener('click', () => {
+            this.exportToTxtFile();
+        });
+        document.getElementById('btnExportHtml').addEventListener('click', () => {
+            this.exportToHtmlFile();
         });
     },
     
     /**
      * 导出为 txt 文件
      */
-    exportToFile() {
-        const content = this.serializeData();
+    exportToTxtFile() {
+        const content = this.serializeToTxt();
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -68,13 +61,31 @@ const Config = {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        App.showToast('导出成功', 'success');
+        App.showToast('导出 txt 成功', 'success');
     },
-    
+
     /**
-     * 序列化数据为 txt 格式
+     * 导出为 NETSCAPE bookmarks.html（Chrome/Edge/Firefox 通用书签格式）
+     * 导出后可用任何浏览器"导入书签"功能导入，也能被本系统的导入功能识别
      */
-    serializeData() {
+    exportToHtmlFile() {
+        const content = this.serializeToHtml();
+        const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bookmarks_${this.getTimestamp()}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        App.showToast('导出 html 成功', 'success');
+    },
+
+    /**
+     * 序列化数据为 txt 格式（标题,URL + #文件夹层级）
+     */
+    serializeToTxt() {
         const lines = [];
         
         const traverse = (folders, level) => {
@@ -96,6 +107,61 @@ const Config = {
         };
         
         traverse(this.data.folders, 1);
+        return lines.join('\n');
+    },
+
+    /**
+     * 兼容别名：云端同步模块仍调用此名
+     */
+    serializeData() { return this.serializeToTxt(); },
+
+    /**
+     * 序列化数据为 NETSCAPE bookmarks.html 格式
+     * 结构：<DL><p> <DT><H3>文件夹</H3> <DL><p> <DT><A HREF="...">标题</A> </DL><p> </DL><p>
+     * 可被 Chrome / Edge / Firefox 等所有浏览器"导入书签"功能识别
+     */
+    serializeToHtml() {
+        const esc = (str) => String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const lines = [];
+        lines.push('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
+        lines.push('<!-- This is an automatically generated file. -->');
+        lines.push('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">');
+        lines.push('<TITLE>收藏夹</TITLE>');
+        lines.push('<H1>收藏夹</H1>');
+
+        // 用 Unix 时间戳（秒）作为 ADD_DATE，Chrome/Edge 会识别
+        const now = Math.floor(Date.now() / 1000);
+
+        const walk = (folders, isRoot) => {
+            if (isRoot) {
+                lines.push('<DL><p>');
+            }
+            for (const folder of folders) {
+                lines.push(`<DT><H3 ADD_DATE="${now}" LAST_MODIFIED="${now}">${esc(folder.name)}</H3>`);
+                lines.push('<DL><p>');
+                // 该文件夹下的收藏（按排序）
+                const orderedBookmarks = this.getOrderedBookmarksForExport(folder.id);
+                for (const bm of orderedBookmarks) {
+                    lines.push(`<DT><A HREF="${esc(bm.url)}" ADD_DATE="${now}">${esc(bm.title)}</A>`);
+                }
+                // 子文件夹
+                if (folder.children && folder.children.length > 0) {
+                    walk(folder.children, false);
+                }
+                lines.push('</DL><p>');
+            }
+            if (isRoot) {
+                lines.push('</DL><p>');
+            }
+        };
+
+        walk(this.data.folders, true);
         return lines.join('\n');
     },
     
@@ -129,36 +195,6 @@ const Config = {
             App.showToast('读取文件失败', 'error');
         };
         reader.readAsText(file, 'UTF-8');
-    },
-    
-    /**
-     * 从 URL 在线加载
-     */
-    async importFromUrl(url) {
-        App.showToast('正在加载...', 'info');
-        
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'text/plain'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const content = await response.text();
-            this.processImport(content);
-        } catch (err) {
-            let msg = '加载失败';
-            if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                msg = '网络错误或 CORS 限制。请使用支持跨域的 URL（如 GitHub raw 文件链接）';
-            } else {
-                msg = msg + '：' + err.message;
-            }
-            App.showToast(msg, 'error');
-        }
     },
     
     /**
