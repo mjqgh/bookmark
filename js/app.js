@@ -481,7 +481,7 @@ const App = {
             updateFetchUrlPreview();
         };
 
-        // 实时预览：raw URL → jsDelivr 转换
+        // 实时预览：raw URL → gh-proxy 加速转换
         const updateFetchUrlPreview = () => {
             const raw = rawUrlInput.value.trim();
             const provider = providerSel.value;

@@ -1,7 +1,7 @@
 /**
  * 云端同步模块 —— 用户自带存储，零后端
  * 
- * 支持：GitHub (jsDelivr 加速)、WebDAV（坚果云/Nextcloud）、
+ * 支持：GitHub (gh-proxy 加速)、WebDAV（坚果云/Nextcloud）、
  *       国内对象存储（七牛/阿里 OSS）等任意能被 fetch 到的 txt URL
  * 
  * 工作方式：
@@ -14,7 +14,7 @@ const CloudSync = {
     // {
     //   provider: 'github' | 'webdav' | 'qiniu' | 'aliyun' | 'custom',
     //   rawUrl:  'https://raw.githubusercontent.com/...',   // 用户填的原始 URL
-    //   fetchUrl:'https://cdn.jsdelivr.net/gh/...',         // 实际拉取的（加速后）URL
+    //   fetchUrl:'https://gh-proxy.com/https://raw.githubusercontent.com/...',  // 实际拉取的（加速后）URL
     //   intervalMin: 15,                                      // 拉取间隔（分钟）
     //   enabled: true,
     //   lastFetchTs: 0,
@@ -29,6 +29,16 @@ const CloudSync = {
     // =====================================================
     init() {
         this._config = this._loadConfig();
+
+        // 老用户迁移：如果 fetchUrl 还是旧的 jsDelivr 格式，自动切换为 gh-proxy
+        if (this._config.provider === 'github' 
+            && this._config.rawUrl 
+            && this._config.fetchUrl 
+            && this._config.fetchUrl.includes('jsdelivr')) {
+            this._config.fetchUrl = this._githubRawToGhProxy(this._config.rawUrl);
+            localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+        }
+
         if (this._config.enabled && this._config.fetchUrl) {
             this._startAutoFetch();
         }
@@ -102,62 +112,35 @@ const CloudSync = {
 
     /**
      * 根据存储源 + raw URL 构造实际拉取 URL
-     * 核心逻辑：GitHub raw → jsDelivr CDN
+     * 核心逻辑：GitHub raw → gh-proxy 加速（gh-proxy 直接在原始 URL 前加前缀即可，
+     * 缓存失效远快于 jsDelivr——jsDelivr CDN 缓存经常延迟数小时才同步更新）
      */
     _buildFetchUrl(rawUrl, provider) {
         if (!rawUrl) return '';
         provider = provider || this.detectProvider(rawUrl);
 
         if (provider === 'github') {
-            return this._githubRawToJsDelivr(rawUrl);
+            return this._githubRawToGhProxy(rawUrl);
         }
         // 其他源直接用 rawUrl（本身就是 CDN 或内网服务）
         return rawUrl;
     },
 
     /**
-     * GitHub raw URL → jsDelivr CDN URL
+     * GitHub raw URL → gh-proxy 加速 URL
      * 
-     * GitHub 有三种 raw URL 格式：
+     * gh-proxy 用法极简：直接把完整的 raw URL 拼到前缀后面
+     *   https://gh-proxy.com/{完整的 raw URL}
+     * 
+     * 不需要解析 owner/repo/branch/path 结构，任何 GitHub raw 格式都能处理：
      *   旧版: https://raw.githubusercontent.com/owner/repo/main/path/to/file.txt
      *   新版: https://raw.githubusercontent.com/owner/repo/refs/heads/main/path/to/file.txt
      *   标签: https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0/path/to/file.txt
-     * 
-     * jsDelivr 只认 branch/tag 名，不认 refs/heads/ 前缀
-     *   https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path...}
      */
-    _githubRawToJsDelivr(raw) {
+    _githubRawToGhProxy(raw) {
         try {
-            const url = new URL(raw);
-            const path = url.pathname.split('/').filter(Boolean);
-            if (path.length < 3) return raw;
-
-            const owner = path[0];
-            const repo = path[1];
-            let branch, fileStartIdx;
-
-            // 判断 branch 的位置
-            if (path[2] === 'refs' && path[3] === 'heads' && path.length >= 4) {
-                // refs/heads/main/... 新版分支格式
-                branch = path[4];
-                fileStartIdx = 5;
-            } else if (path[2] === 'refs' && path[3] === 'tags' && path.length >= 4) {
-                // refs/tags/v1.0/... 标签格式
-                branch = path[4];
-                fileStartIdx = 5;
-            } else if (path[2] === 'refs' && path[3] === 'pull' && path[5] === 'head' && path.length >= 6) {
-                // refs/pull/123/head PR 特殊处理——jsDelivr 不认，fallback 用 main
-                // 但这种场景极罕见，用户应该用正常分支
-                branch = 'main';
-                fileStartIdx = 6;
-            } else {
-                // 旧版 main/... 直接就是 branch
-                branch = path[2];
-                fileStartIdx = 3;
-            }
-
-            const filePath = path.slice(fileStartIdx).join('/');
-            return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${filePath}`;
+            new URL(raw); // 验证 URL 合法性
+            return `https://gh-proxy.com/${raw}`;
         } catch (e) {
             return raw;
         }
@@ -239,7 +222,7 @@ const CloudSync = {
      * 策略：
      * 1. 不带自定义 headers → 不会发 OPTIONS 预检 → 直接 GET → 能拿到数据
      * 2. cache: 'no-cache' → 告诉浏览器每次都向服务器发条件请求（自动带 If-None-Match）
-     * 3. jsDelivr 失败 → fallback 到 raw URL
+     * 3. gh-proxy 失败 → fallback 到 raw URL
      */
     async _doFetch() {
         const urlsToTry = [];
@@ -344,11 +327,11 @@ const CloudSync = {
     _friendlyError(err) {
         const msg = err.message || String(err);
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('TypeError') || msg.includes('ORB')) {
-            return '网络错误或 CORS/ORB 拦截。GitHub URL 请选"GitHub (jsDelivr 加速)"存储源，raw.githubusercontent.com 不支持跨域；jsDelivr 和国内七牛/OSS 均自带 CORS' ;
+            return '网络错误或 CORS/ORB 拦截。GitHub URL 请选"GitHub (gh-proxy 加速)"存储源，raw.githubusercontent.com 不支持跨域；gh-proxy 和国内七牛/OSS 均自带 CORS' ;
         }
         if (msg.includes('HTTP 404')) return 'URL 找不到文件（404）—— 检查仓库路径、分支名和文件名是否正确';
         if (msg.includes('HTTP 403')) return '无权访问（403）—— 可能是私有仓库或文件权限限制';
-        if (msg.includes('HTTP 400')) return '请求错误（400）—— 可能是 jsDelivr CDN 上文件未同步，等待几分钟或确认文件已存在';
+        if (msg.includes('HTTP 400')) return '请求错误（400）—— 可能是 gh-proxy 加速失败，稍等重试或检查 URL 格式';
         return msg;
     },
 
