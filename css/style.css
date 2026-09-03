@@ -1163,6 +1163,14 @@ body.drag-locked .drag-handle {
     gap: 12px;
 }
 
+/* 导出区两个按钮横排平分 */
+.export-options {
+    flex-direction: row;
+}
+.export-options .btn {
+    flex: 1;
+}
+
 .config-hint {
     font-size: 12px;
     color: #999;
