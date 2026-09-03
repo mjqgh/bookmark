@@ -47,6 +47,9 @@ const App = {
             cloudInterval: '拉取间隔',
             cloudIntervalManual: '仅手动拉取',
             cloudTestFetch: '立即拉取',
+            cloudUpload: '上传到云端',
+            cloudGithubToken: 'GitHub 令牌',
+            cloudTokenHint: '需勾选 repo 权限的个人访问令牌。',
             cloudSave: '保存配置',
             cloudStatusFetching: '正在拉取...',
             cloudStatusOk: '上次同步：',
@@ -139,6 +142,9 @@ const App = {
             cloudInterval: 'Fetch Interval',
             cloudIntervalManual: 'Manual only',
             cloudTestFetch: 'Fetch Now',
+            cloudUpload: 'Upload to Cloud',
+            cloudGithubToken: 'GitHub Token',
+            cloudTokenHint: 'A personal access token with repo scope is required.',
             cloudSave: 'Save Config',
             cloudStatusFetching: 'Fetching...',
             cloudStatusOk: 'Last sync: ',
@@ -457,10 +463,31 @@ const App = {
         const enabledCb = document.getElementById('cloudSyncEnabled');
         const providerSel = document.getElementById('cloudProvider');
         const rawUrlInput = document.getElementById('cloudRawUrl');
+        const tokenInput = document.getElementById('cloudGithubToken');
+        const tokenRow = document.getElementById('githubTokenRow');
         const intervalSel = document.getElementById('cloudInterval');
         const statusEl = document.getElementById('cloudStatus');
         const btnSave = document.getElementById('cloudSaveConfig');
         const btnTest = document.getElementById('cloudTestFetch');
+        const btnUpload = document.getElementById('cloudUpload');
+
+        // 汇总表单值（保存/拉取/上传共用，保证三处拿到的配置一致）
+        const collectForm = () => ({
+            enabled: enabledCb.checked,
+            provider: providerSel.value,
+            rawUrl: rawUrlInput.value.trim(),
+            githubToken: tokenInput.value.trim(),
+            intervalMin: parseInt(intervalSel.value, 10) || 15
+        });
+
+        // 仅 GitHub 源显示令牌区与上传按钮；其他源只读（仅能拉取）
+        const syncProviderUI = () => {
+            const isGithub = providerSel.value === 'github';
+            tokenRow.style.display = isGithub ? '' : 'none';
+            btnUpload.style.display = isGithub ? '' : 'none';
+            btnUpload.disabled = !isGithub;
+            btnUpload.title = isGithub ? '' : '当前存储源仅支持拉取，选择 GitHub 并配置令牌后可上传';
+        };
 
         // 填充已有配置到表单
         const fillForm = () => {
@@ -468,25 +495,25 @@ const App = {
             enabledCb.checked = !!cfg.enabled;
             providerSel.value = cfg.provider || 'github';
             rawUrlInput.value = cfg.rawUrl || '';
+            // 令牌用 password 框掩码显示；填真值便于用户确认已配置（值仅存本机）
+            tokenInput.value = cfg.githubToken || '';
             intervalSel.value = String(cfg.intervalMin || 15);
             statusEl.textContent = CloudSync.formatLastFetch();
             if (cfg.lastFetchTs) statusEl.classList.add('has-fetch');
             else statusEl.classList.remove('has-fetch');
+            syncProviderUI();
         };
+
+        providerSel.addEventListener('change', syncProviderUI);
 
         // 事件绑定
         btnSave.addEventListener('click', () => {
-            const rawUrl = rawUrlInput.value.trim();
-            if (!rawUrl) {
+            const form = collectForm();
+            if (!form.rawUrl) {
                 App.showToast('请先填写 txt 文件 URL', 'error');
                 return;
             }
-            const newCfg = CloudSync.saveConfig({
-                enabled: enabledCb.checked,
-                provider: providerSel.value,
-                rawUrl: rawUrl,
-                intervalMin: parseInt(intervalSel.value, 10) || 15
-            });
+            const newCfg = CloudSync.saveConfig(form);
             statusEl.textContent = CloudSync.formatLastFetch();
             App.showToast('配置已保存' + (newCfg.enabled ? '，启用自动拉取' : ''), 'success');
         });
@@ -496,19 +523,42 @@ const App = {
                 App.showToast('请先填写 txt 文件 URL', 'error');
                 return;
             }
-            // 先保存再拉取（用最新表单值）
-            CloudSync.saveConfig({
-                enabled: enabledCb.checked,
-                provider: providerSel.value,
-                rawUrl: rawUrlInput.value.trim(),
-                intervalMin: parseInt(intervalSel.value, 10) || 15
-            });
+            // 先保存再拉取（用最新表单值，含令牌）
+            CloudSync.saveConfig(collectForm());
             const result = await CloudSync.fetchManual();
             if (result.ok) {
                 statusEl.textContent = CloudSync.formatLastFetch();
                 statusEl.classList.add('has-fetch');
-                // 拉取成功 → 存本地快照（冲突检测基准）
-                CloudSync._saveLocalSnapshot();
+            }
+        });
+
+        // 上传到云端（仅 GitHub + 令牌；冲突时由 CloudSync 弹窗二选一）
+        btnUpload.addEventListener('click', async () => {
+            const form = collectForm();
+            if (form.provider !== 'github') {
+                App.showToast('当前存储源仅支持拉取；选择 GitHub 并配置令牌后可双向同步', 'error');
+                return;
+            }
+            if (!form.rawUrl) {
+                App.showToast('请先填写 txt 文件 URL', 'error');
+                return;
+            }
+            if (!form.githubToken) {
+                App.showToast('请先填写 GitHub 令牌（需勾选 repo 权限）', 'error');
+                tokenInput.focus();
+                return;
+            }
+            // 先保存表单（令牌/URL 最新值）再上传
+            CloudSync.saveConfig(form);
+            btnUpload.disabled = true;
+            try {
+                const result = await CloudSync.uploadManual();
+                if (result.ok) {
+                    statusEl.textContent = CloudSync.formatLastFetch();
+                    statusEl.classList.add('has-fetch');
+                }
+            } finally {
+                btnUpload.disabled = false;
             }
         });
 

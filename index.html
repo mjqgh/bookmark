@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=40">
+    <link rel="stylesheet" href="css/style.css?v=41">
 </head>
 <body>
     <div class="app">
@@ -108,6 +108,15 @@
                             <input type="text" id="cloudRawUrl" class="text-input cloud-input" placeholder="https://raw.githubusercontent.com/用户名/仓库/main/bookmarks.txt">
                         </label>
                     </div>
+                    <div class="config-options" id="githubTokenRow" style="display:none;">
+                        <label class="cloud-field">
+                            <span class="cloud-label" data-i18n="cloudGithubToken">GitHub 令牌</span>
+                            <input type="password" id="cloudGithubToken" class="text-input cloud-input" placeholder="ghp_xxxxxxxxxxxx（仅本机存储，直连 GitHub）" autocomplete="off">
+                        </label>
+                        <div class="cloud-token-hint" data-i18n="cloudTokenHint">
+                            需勾选 repo 权限的个人访问令牌。<a href="https://github.com/settings/tokens/new?scopes=repo&description=%E6%94%B6%E8%97%8F%E5%A4%B9%E5%90%8C%E6%AD%A5" target="_blank" rel="noopener">点此生成令牌 →</a> 令牌仅保存在本设备浏览器，不会经过任何第三方服务器。
+                        </div>
+                    </div>
                     <div class="config-options">
                         <label class="cloud-field">
                             <span class="cloud-label" data-i18n="cloudInterval">拉取间隔</span>
@@ -125,6 +134,7 @@
                             <span data-i18n="cloudNeverSynced">从未同步</span>
                         </span>
                         <div class="cloud-btn-group">
+                            <button class="btn btn-default" id="cloudUpload" data-i18n="cloudUpload">上传到云端</button>
                             <button class="btn btn-default" id="cloudTestFetch" data-i18n="cloudTestFetch">立即拉取</button>
                             <button class="btn btn-primary" id="cloudSaveConfig" data-i18n="cloudSave">保存配置</button>
                         </div>
@@ -366,8 +376,8 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/tree.js?v=54"></script>
     <script src="js/bookmarks.js?v=15"></script>
     <script src="js/config.js?v=9"></script>
-    <script src="js/cloudSync.js?v=7"></script>
+    <script src="js/cloudSync.js?v=8"></script>
     <script src="js/trash.js?v=2"></script>
-    <script src="js/app.js?v=28"></script>
+    <script src="js/app.js?v=29"></script>
 </body>
 </html>

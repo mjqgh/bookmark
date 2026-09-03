@@ -1249,6 +1249,25 @@ body.drag-locked .drag-handle {
     max-width: 520px;
 }
 
+/* GitHub 令牌提示 */
+.cloud-token-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.6;
+}
+.cloud-token-hint a {
+    color: #4a90d9;
+    text-decoration: none;
+}
+.cloud-token-hint a:hover {
+    text-decoration: underline;
+}
+#cloudUpload:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 
 .format-example {
     background: #f5f5f5;
