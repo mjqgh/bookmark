@@ -44,7 +44,6 @@ const App = {
             cloudProvider: '存储源',
             cloudProviderCustom: '其他（自定义 URL）',
             cloudRawUrl: 'txt 文件 URL',
-            cloudFetchUrl: '实际拉取地址（自动加速）',
             cloudInterval: '拉取间隔',
             cloudIntervalManual: '仅手动拉取',
             cloudTestFetch: '立即拉取',
@@ -137,7 +136,6 @@ const App = {
             cloudProvider: 'Provider',
             cloudProviderCustom: 'Other (Custom URL)',
             cloudRawUrl: 'txt File URL',
-            cloudFetchUrl: 'Fetch URL (auto-accelerated)',
             cloudInterval: 'Fetch Interval',
             cloudIntervalManual: 'Manual only',
             cloudTestFetch: 'Fetch Now',
@@ -460,8 +458,6 @@ const App = {
         const providerSel = document.getElementById('cloudProvider');
         const rawUrlInput = document.getElementById('cloudRawUrl');
         const intervalSel = document.getElementById('cloudInterval');
-        const fetchUrlRow = document.getElementById('cloudFetchUrlRow');
-        const fetchUrlCode = document.getElementById('cloudFetchUrl');
         const statusEl = document.getElementById('cloudStatus');
         const btnSave = document.getElementById('cloudSaveConfig');
         const btnTest = document.getElementById('cloudTestFetch');
@@ -476,30 +472,9 @@ const App = {
             statusEl.textContent = CloudSync.formatLastFetch();
             if (cfg.lastFetchTs) statusEl.classList.add('has-fetch');
             else statusEl.classList.remove('has-fetch');
-            updateFetchUrlPreview();
-        };
-
-        // 实时预览：raw URL → gh-proxy 加速转换
-        const updateFetchUrlPreview = () => {
-            const raw = rawUrlInput.value.trim();
-            const provider = providerSel.value;
-            if (!raw) {
-                fetchUrlRow.style.display = 'none';
-                return;
-            }
-            const fetched = CloudSync._buildFetchUrl(raw, provider);
-            if (fetched !== raw) {
-                fetchUrlCode.textContent = fetched;
-                fetchUrlRow.style.display = '';
-            } else {
-                fetchUrlRow.style.display = 'none';
-            }
         };
 
         // 事件绑定
-        rawUrlInput.addEventListener('input', updateFetchUrlPreview);
-        providerSel.addEventListener('change', updateFetchUrlPreview);
-
         btnSave.addEventListener('click', () => {
             const rawUrl = rawUrlInput.value.trim();
             if (!rawUrl) {

@@ -1215,22 +1215,7 @@ body.drag-locked .drag-handle {
     width: 100%;
 }
 
-.cloud-fetch-url-row .cloud-fetch-url {
-    display: block;
-    background: #f0f7ff;
-    border: 1px solid #d0e3ff;
-    padding: 8px 10px;
-    border-radius: 6px;
-    font-family: "Consolas", "Monaco", monospace;
-    font-size: 12px;
-    color: #1a5bc7;
-    word-break: break-all;
-    line-height: 1.5;
-    max-height: 60px;
-    overflow-y: auto;
-}
-
-.cloud-status-row {
+.cloud-sync-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
