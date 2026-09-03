@@ -1215,15 +1215,6 @@ body.drag-locked .drag-handle {
     width: 100%;
 }
 
-.cloud-sync-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    max-width: 520px;
-}
-
 .cloud-status {
     font-size: 12px;
     color: #888;
