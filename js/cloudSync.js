@@ -5,8 +5,12 @@
  *       国内对象存储（七牛/阿里 OSS）等任意能被 fetch 到的 txt URL
  *
  * 工作方式：
- *   拉取（所有源）—— 云端 txt 是 Source of Truth，定时/手动拉取
- *   上传（仅 GitHub + 令牌）—— 手动点"上传到云端"，走 GitHub Contents API
+ *   拉取模式（所有源）—— 云端 txt 是 Source of Truth，定时/手动拉取
+ *   双向同步模式（仅 GitHub + 令牌）—— 定时/手动双向同步，与拉取模式二选一：
+ *     · 仅本地变了 → 自动上传本地
+ *     · 仅云端变了 → 自动应用云端
+ *     · 两边都变了 → 以基线快照做三方合并（新增合并、删除传播），合并结果回写云端
+ *   上传（手动"上传到云端"）—— 走 GitHub Contents API
  *     · api.github.com 正确支持 CORS 预检（raw 域名不支持），故上传直连 API，不走 gh-proxy
  *     · 二态写入：远程无文件→创建（不带 sha）；有文件→更新（必须带最新 sha，否则 409）
  *     · 冲突：上传前 GET 远程内容与本地基准快照对比，云端被其他设备改过 → 弹窗二选一
@@ -21,7 +25,8 @@ const CloudSync = {
     //   fetchUrl:'https://gh-proxy.com/https://raw.githubusercontent.com/...',  // 实际拉取的（加速后）URL
     //   githubToken: 'ghp_xxx',                             // GitHub 个人访问令牌（仅 github 双向同步用，仅存本机）
     //   intervalMin: 15,                                      // 拉取间隔（分钟）
-    //   enabled: true,
+    //   enabled: true,                                        // 自动拉取模式（与 twoWay 互斥）
+    //   twoWay: false,                                        // 自动双向同步模式（与 enabled 互斥，需 GitHub + 令牌）
     //   lastFetchTs: 0,
     //   lastETag: '',
     //   localBackupTs: 0                                      // 冲突检测用：上次同步时本地数据快照
@@ -44,15 +49,19 @@ const CloudSync = {
             localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
         }
 
-        if (this._config.enabled && this._config.fetchUrl) {
+        if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
             this._startAutoFetch();
         }
         // 页面重新可见时立刻检查一次
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && this._config.enabled && this._config.fetchUrl) {
+            if (!document.hidden && this._config.fetchUrl && (this._config.enabled || this._config.twoWay)) {
                 // 节流：距离上次拉取 > 1 分钟才触发
                 if (Date.now() - (this._config.lastFetchTs || 0) > 60 * 1000) {
-                    this.fetchSilent();
+                    if (this._config.twoWay) {
+                        this.syncTwoWay(true);
+                    } else {
+                        this.fetchSilent();
+                    }
                 }
             }
         });
@@ -73,6 +82,7 @@ const CloudSync = {
             githubToken: '',
             intervalMin: 15,
             enabled: false,
+            twoWay: false,
             lastFetchTs: 0,
             lastETag: '',
             localBackupTs: 0
@@ -84,11 +94,15 @@ const CloudSync = {
         if (partial.rawUrl !== undefined) {
             partial.fetchUrl = this._buildFetchUrl(partial.rawUrl, partial.provider || this._config.provider);
         }
+        // 二选一互斥：启用一个自动关闭另一个
+        if (partial.twoWay === true) partial.enabled = false;
+        if (partial.enabled === true) partial.twoWay = false;
+
         this._config = { ...this._config, ...partial };
         localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-        
-        // 如果启用了，启动定时
-        if (this._config.enabled && this._config.fetchUrl) {
+
+        // 如果启用了任一模式，启动定时
+        if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
             this._startAutoFetch();
         } else {
             this._stopAutoFetch();
@@ -422,8 +436,9 @@ const CloudSync = {
 
     /**
      * 执行 PUT 写入（二态：sha 为 null 创建，否则更新）
+     * @param {boolean} silent 静默模式（自动双向同步用）：不弹过程/结果 toast，仅错误时 console.warn
      */
-    async _doUpload(parsed, content, sha) {
+    async _doUpload(parsed, content, sha, silent) {
         const apiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/${parsed.path}`;
         const body = {
             message: `sync: bookmarks update ${new Date().toLocaleString()}`,
@@ -432,7 +447,7 @@ const CloudSync = {
         };
         if (sha) body.sha = sha;
 
-        App.showToast('正在上传到 GitHub...', 'info');
+        if (!silent) App.showToast('正在上传到 GitHub...', 'info');
         let resp;
         try {
             resp = await fetch(apiUrl, {
@@ -445,23 +460,30 @@ const CloudSync = {
                 body: JSON.stringify(body)
             });
         } catch (e) {
-            App.showToast('上传失败：网络错误或被 CORS 拦截', 'error');
+            if (!silent) App.showToast('上传失败：网络错误或被 CORS 拦截', 'error');
             return { ok: false, reason: e.message };
         }
 
         if (!resp.ok) {
             const data = await resp.json().catch(() => ({}));
             const err = new Error(`HTTP ${resp.status} ${data.message || ''}`.trim());
-            App.showToast('上传失败：' + this._friendlyError(err), 'error');
+            if (!silent) App.showToast('上传失败：' + this._friendlyError(err), 'error');
             return { ok: false, reason: err.message };
         }
 
         // 成功：当前数据 == 云端，刷新基准快照与同步时间（拉/上传共用同一基准）
         this._saveLocalSnapshot();
+        this._setSyncedNow();
+        if (!silent) App.showToast('上传成功，云端已更新', 'success');
+        return { ok: true };
+    },
+
+    /**
+     * 更新"上次同步时间"并持久化配置
+     */
+    _setSyncedNow() {
         this._config.lastFetchTs = Date.now();
         localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-        App.showToast('上传成功，云端已更新', 'success');
-        return { ok: true };
     },
 
     /**
@@ -482,6 +504,293 @@ const CloudSync = {
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         return new TextDecoder().decode(bytes);
+    },
+
+    // =====================================================
+    // 自动双向同步（与"自动拉取"二选一；需 GitHub + 令牌）
+    // =====================================================
+
+    /**
+     * 手动同步入口（"立即拉取"按钮调用）：双向模式走双向同步，否则走原拉取
+     */
+    async syncNow() {
+        if (this._config.twoWay) {
+            if (!this.canUpload()) {
+                App.showToast('双向同步需要 GitHub 存储源 + 令牌，本次仅执行拉取', 'info');
+                return this.fetchManual();
+            }
+            return this.syncTwoWay(false);
+        }
+        return this.fetchManual();
+    },
+
+    /**
+     * 双向同步核心。
+     * 以"基线快照"（上次同步时本地数据）为共同祖先做三方对比：
+     *   仅本地变   → 上传本地
+     *   仅云端变   → 应用云端
+     *   双方都变   → 三方合并（新增合并、删除传播），合并结果应用本地并回写云端
+     *   无基线     → 视为"仅云端变"（云端优先，与拉取模式语义一致）
+     * @param {boolean} silent true=定时/页面可见触发，无 toast；false=手动触发，有 toast
+     * @returns {Promise<{ok:boolean, action?:string, reason?:string}>}
+     */
+    async syncTwoWay(silent) {
+        if (!this._config.fetchUrl) {
+            if (!silent) App.showToast('请先配置云端 URL', 'error');
+            return { ok: false, reason: 'no_url' };
+        }
+        const parsed = this._parseGithubRawUrl(this._config.rawUrl);
+        if (!parsed) {
+            if (!silent) App.showToast('txt URL 格式无法解析，请使用 raw.githubusercontent.com 链接', 'error');
+            return { ok: false, reason: 'bad_url' };
+        }
+
+        if (!silent) App.showToast('正在双向同步...', 'info');
+        try {
+            // 用 Contents API 读远程（自带 sha，上传时直接可用）
+            const remote = await this._getRemoteFile(parsed);
+            const local = Config.serializeData();
+            let baseline = null;
+            try { baseline = localStorage.getItem('cloud_sync_last_local_snapshot'); } catch (e) { /* ignore */ }
+
+            // —— 云端无文件 → 首次同步，直接上传本地 ——
+            if (!remote.exists) {
+                if (!local) {
+                    if (!silent) App.showToast('本地与云端都没有数据', 'info');
+                    return { ok: true, action: 'noop' };
+                }
+                const r = await this._doUpload(parsed, local, null, silent);
+                if (r.ok && !silent) App.showToast('首次同步：本地数据已上传云端', 'success');
+                return r.ok ? { ok: true, action: 'uploaded' } : r;
+            }
+
+            // —— 完全一致 → 无事发生 ——
+            if (remote.content === local) {
+                this._setSyncedNow();
+                if (!silent) App.showToast('本地与云端已一致', 'info');
+                return { ok: true, action: 'in_sync' };
+            }
+
+            const localChanged = baseline ? (local !== baseline) : false;
+            const remoteChanged = baseline ? (remote.content !== baseline) : true; // 无基线时按"云端已变"处理
+
+            // —— 仅本地变 → 上传本地 ——
+            if (localChanged && !remoteChanged) {
+                const r = await this._doUpload(parsed, local, remote.sha, silent);
+                if (r.ok && !silent) App.showToast('本地改动已上传云端', 'success');
+                return r.ok ? { ok: true, action: 'uploaded' } : r;
+            }
+
+            // —— 仅云端变（或无基线）→ 应用云端 ——
+            if (!localChanged && remoteChanged) {
+                Config.processImport(remote.content, true);
+                this._saveLocalSnapshot();
+                this._setSyncedNow();
+                if (!silent) App.showToast('云端更新已应用到本地', 'success');
+                return { ok: true, action: 'pulled' };
+            }
+
+            // —— 双方都变 → 三方合并 ——
+            const merged = this._mergeContents(baseline, local, remote.content);
+            if (!merged) {
+                if (!silent) App.showToast('合并失败：请手动导出备份后重试', 'error');
+                return { ok: false, reason: 'merge_failed' };
+            }
+            if (merged === remote.content) {
+                // 合并结果与云端一致（本地改动是云端的子集）→ 仅应用云端
+                Config.processImport(remote.content, true);
+                this._saveLocalSnapshot();
+                this._setSyncedNow();
+                if (!silent) App.showToast('已与云端对齐', 'success');
+                return { ok: true, action: 'pulled' };
+            }
+
+            // 先应用合并结果到本地（失败则中止，避免快照错乱）
+            Config.processImport(merged, true);
+            this._saveLocalSnapshot();
+
+            // 回写云端（sha 仍有效：读取后云端未被本进程改过）
+            const r = await this._doUpload(parsed, Config.serializeData(), remote.sha, silent);
+            if (r.ok) {
+                if (!silent) App.showToast('双向同步完成：本地与云端改动已合并', 'success');
+                return { ok: true, action: 'merged' };
+            }
+            // 上传失败：本地已是合并结果，下个周期会检测到本地有改动并重新上传
+            if (!silent) App.showToast('合并已应用到本地，但回写云端失败，稍后自动重试', 'info');
+            return r;
+        } catch (e) {
+            if (silent) {
+                console.warn('[CloudSync] two-way sync failed:', e.message);
+            } else {
+                App.showToast('双向同步失败：' + this._friendlyError(e), 'error');
+            }
+            return { ok: false, reason: e.message };
+        }
+    },
+
+    /**
+     * 把 txt 内容解析为带路径信息的树（供三方合并用）
+     * 路径规则：根文件夹名 / 子文件夹名 / ...（与 Tree.getFolderPath 的显示路径对应）
+     * @returns {{folders:Array, folderSet:Set<string>, bmMap:Map<string,string>}}
+     *   folders 节点结构 { name, children:[], bookmarks:[{url,title}] }
+     *   bmMap   key = path + '\u0000' + url → title
+     */
+    _parseTree(content) {
+        const { folders, bookmarks } = Config.parseData(content || '');
+        const bmByFolder = new Map();
+        bookmarks.forEach(b => {
+            if (!bmByFolder.has(b.folderId)) bmByFolder.set(b.folderId, []);
+            bmByFolder.get(b.folderId).push({ url: b.url, title: b.title });
+        });
+
+        const folderSet = new Set();
+        const bmMap = new Map();
+        const assign = (nodes, prefix) => {
+            nodes.forEach(f => {
+                const p = prefix ? prefix + '/' + f.name : f.name;
+                folderSet.add(p);
+                f.bookmarks = bmByFolder.get(f.id) || [];
+                f.children = f.children || [];
+                (f.bookmarks).forEach(b => bmMap.set(p + '\u0000' + b.url, b.title));
+                assign(f.children, p);
+            });
+        };
+        assign(folders, '');
+        return { folders, folderSet, bmMap };
+    },
+
+    /**
+     * 三方合并：baseline（共同祖先）+ 本地 + 云端
+     * 规则（文件夹与收藏同律，收藏以"路径+URL"为键）：
+     *   祖先中存在 → 两侧都还在才保留（任一侧删除即删除，删除可传播）
+     *   祖先中没有 → 任一侧新增即保留（新增不丢）
+     *   标题冲突   → 本地优先
+     * 结构上以本地树为骨架（保留本地排序），远端新增追加到对应父级末尾
+     * @returns {string|null} 合并后的 txt 内容；失败返回 null
+     */
+    _mergeContents(baseline, localContent, remoteContent) {
+        try {
+            const B = this._parseTree(baseline || '');
+            const L = this._parseTree(localContent || '');
+            const R = this._parseTree(remoteContent || '');
+            const keyOf = (p, url) => p + '\u0000' + url;
+
+            // ---- 1) 合并文件夹集合（按路径）----
+            const mergedFolders = new Set();
+            new Set([...B.folderSet, ...L.folderSet, ...R.folderSet]).forEach(p => {
+                const b = B.folderSet.has(p), l = L.folderSet.has(p), r = R.folderSet.has(p);
+                if (b ? (l && r) : (l || r)) mergedFolders.add(p);
+            });
+
+            // ---- 2) 合并收藏集合（路径 + URL）----
+            const mergedBm = new Map(); // key → title
+            new Set([...B.bmMap.keys(), ...L.bmMap.keys(), ...R.bmMap.keys()]).forEach(k => {
+                const p = k.substring(0, k.indexOf('\u0000'));
+                if (!mergedFolders.has(p)) return;
+                const b = B.bmMap.has(k), l = L.bmMap.has(k), r = R.bmMap.has(k);
+                if (b ? (l && r) : (l || r)) {
+                    mergedBm.set(k, l ? L.bmMap.get(k) : R.bmMap.get(k)); // 标题本地优先
+                }
+            });
+
+            // ---- 3) 以本地树为骨架剪枝：删除不该保留的文件夹/收藏 ----
+            const prune = (nodes, prefix) => {
+                const out = [];
+                nodes.forEach(f => {
+                    const p = prefix ? prefix + '/' + f.name : f.name;
+                    if (!mergedFolders.has(p)) return;
+                    f.bookmarks = (f.bookmarks || []).filter(b => mergedBm.has(keyOf(p, b.url)));
+                    f.children = prune(f.children || [], p);
+                    out.push(f);
+                });
+                return out;
+            };
+            const mergedTree = prune(JSON.parse(JSON.stringify(L.folders)), '');
+
+            // ---- 4) 追加远端新增（按远端先序遍历，父先于子）----
+            const findNode = (path) => {
+                let list = mergedTree, node = null;
+                const parts = path.split('/');
+                for (let i = 0; i < parts.length; i++) {
+                    node = list.find(x => x.name === parts[i]);
+                    if (!node) return null;
+                    list = node.children || [];
+                }
+                return node;
+            };
+            const ensureFolder = (path) => {
+                // 路径上不存在的节点逐级创建（远端新增的嵌套文件夹）
+                let list = mergedTree, node = null;
+                path.split('/').forEach(name => {
+                    let cur = list.find(x => x.name === name);
+                    if (!cur) { cur = { name, children: [], bookmarks: [] }; list.push(cur); }
+                    node = cur;
+                    list = cur.children || [];
+                });
+                return node;
+            };
+            const ancestorsKept = (path) => {
+                const parts = path.split('/');
+                for (let i = 1; i < parts.length; i++) {
+                    if (!mergedFolders.has(parts.slice(0, i).join('/'))) return false;
+                }
+                return true;
+            };
+            const addRemote = (nodes, prefix) => {
+                nodes.forEach(f => {
+                    const p = prefix ? prefix + '/' + f.name : f.name;
+                    if (mergedFolders.has(p)) {
+                        if (!L.folderSet.has(p)) {
+                            // 远端新增文件夹 → 逐级挂到本地树（祖先必须都保留，否则放弃）
+                            if (ancestorsKept(p)) {
+                                const node = ensureFolder(p);
+                                (f.bookmarks || []).forEach(b => {
+                                    if (mergedBm.has(keyOf(p, b.url)) && !node.bookmarks.some(x => x.url === b.url)) {
+                                        node.bookmarks.push({ url: b.url, title: b.title });
+                                    }
+                                });
+                            }
+                        } else {
+                            // 共有文件夹 → 追加远端新增的收藏
+                            const node = findNode(p);
+                            if (node) {
+                                (f.bookmarks || []).forEach(b => {
+                                    if (mergedBm.has(keyOf(p, b.url)) && !node.bookmarks.some(x => x.url === b.url)) {
+                                        node.bookmarks.push({ url: b.url, title: b.title });
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    addRemote(f.children || [], p);
+                });
+            };
+            addRemote(R.folders, '');
+
+            // ---- 5) 合并结果为空树守卫：processImport 无法应用空数据，放弃本轮 ----
+            if (!mergedTree.length) return null;
+
+            return this._treeToTxt(mergedTree);
+        } catch (e) {
+            console.error('[CloudSync] merge error:', e);
+            return null;
+        }
+    },
+
+    /**
+     * 合并树 → txt 内容（与 Config.serializeToTxt 的行格式一致）
+     */
+    _treeToTxt(folders) {
+        const lines = [];
+        const walk = (nodes, level) => {
+            nodes.forEach(f => {
+                lines.push('#'.repeat(level) + f.name);
+                (f.bookmarks || []).forEach(b => lines.push(`${b.title},${b.url}`));
+                walk(f.children || [], level + 1);
+            });
+        };
+        walk(folders, 1);
+        return lines.join('\n');
     },
 
     // =====================================================
@@ -520,16 +829,21 @@ const CloudSync = {
     },
 
     // =====================================================
-    // 定时拉取
+    // 定时同步（按模式分派：自动拉取 / 自动双向同步）
     // =====================================================
     _startAutoFetch() {
         this._stopAutoFetch();
+        if (!this._config.intervalMin) return; // "仅手动"不排定时
         const self = this;
         const scheduleNext = () => {
             const interval = (this._config.intervalMin || 15) * 60 * 1000;
             self._timer = setTimeout(async () => {
-                await self.fetchSilent();
-                if (self._config.enabled) scheduleNext(); // 递归排下一次
+                if (self._config.twoWay) {
+                    await self.syncTwoWay(true);
+                } else {
+                    await self.fetchSilent();
+                }
+                if (self._config.enabled || self._config.twoWay) scheduleNext(); // 递归排下一次
             }, interval);
         };
         scheduleNext();

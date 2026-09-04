@@ -41,6 +41,7 @@ const App = {
             importFile: '从本地文件导入（支持 txt / html）',
             cloudSyncTitle: '云端自动同步',
             cloudSyncEnabled: '启用自动拉取',
+            cloudSyncTwoWay: '启用自动双向同步',
             cloudProvider: '存储源',
             cloudProviderCustom: '其他（自定义 URL）',
             cloudRawUrl: 'txt 文件 URL',
@@ -136,6 +137,7 @@ const App = {
             importFile: 'Import from File (txt / html)',
             cloudSyncTitle: 'Cloud Auto Sync',
             cloudSyncEnabled: 'Enable auto-fetch',
+            cloudSyncTwoWay: 'Enable auto two-way sync',
             cloudProvider: 'Provider',
             cloudProviderCustom: 'Other (Custom URL)',
             cloudRawUrl: 'txt File URL',
@@ -461,6 +463,7 @@ const App = {
      */
     initCloudSyncUI() {
         const enabledCb = document.getElementById('cloudSyncEnabled');
+        const twoWayCb = document.getElementById('cloudSyncTwoWay');
         const providerSel = document.getElementById('cloudProvider');
         const rawUrlInput = document.getElementById('cloudRawUrl');
         const tokenInput = document.getElementById('cloudGithubToken');
@@ -474,6 +477,7 @@ const App = {
         // 汇总表单值（保存/拉取/上传共用，保证三处拿到的配置一致）
         const collectForm = () => ({
             enabled: enabledCb.checked,
+            twoWay: twoWayCb.checked,
             provider: providerSel.value,
             rawUrl: rawUrlInput.value.trim(),
             githubToken: tokenInput.value.trim(),
@@ -493,6 +497,7 @@ const App = {
         const fillForm = () => {
             const cfg = CloudSync.getConfig();
             enabledCb.checked = !!cfg.enabled;
+            twoWayCb.checked = !!cfg.twoWay;
             providerSel.value = cfg.provider || 'github';
             rawUrlInput.value = cfg.rawUrl || '';
             // 令牌用 password 框掩码显示；填真值便于用户确认已配置（值仅存本机）
@@ -506,6 +511,14 @@ const App = {
 
         providerSel.addEventListener('change', syncProviderUI);
 
+        // 二选一互斥：勾选一个自动取消另一个
+        enabledCb.addEventListener('change', () => {
+            if (enabledCb.checked) twoWayCb.checked = false;
+        });
+        twoWayCb.addEventListener('change', () => {
+            if (twoWayCb.checked) enabledCb.checked = false;
+        });
+
         // 事件绑定
         btnSave.addEventListener('click', () => {
             const form = collectForm();
@@ -513,9 +526,26 @@ const App = {
                 App.showToast('请先填写 txt 文件 URL', 'error');
                 return;
             }
+            // 双向同步的前置校验：GitHub 源 + 令牌 + 可解析的 raw URL
+            if (form.twoWay) {
+                if (form.provider !== 'github') {
+                    App.showToast('自动双向同步仅支持 GitHub 存储源', 'error');
+                    return;
+                }
+                if (!form.githubToken) {
+                    App.showToast('自动双向同步需要填写 GitHub 令牌（需勾选 repo 权限）', 'error');
+                    tokenInput.focus();
+                    return;
+                }
+                if (!CloudSync._parseGithubRawUrl(form.rawUrl)) {
+                    App.showToast('txt URL 格式无法解析，请使用 raw.githubusercontent.com 链接', 'error');
+                    rawUrlInput.focus();
+                    return;
+                }
+            }
             const newCfg = CloudSync.saveConfig(form);
             statusEl.textContent = CloudSync.formatLastFetch();
-            App.showToast('配置已保存' + (newCfg.enabled ? '，启用自动拉取' : ''), 'success');
+            App.showToast('配置已保存' + (newCfg.twoWay ? '，启用自动双向同步' : (newCfg.enabled ? '，启用自动拉取' : '')), 'success');
         });
 
         btnTest.addEventListener('click', async () => {
@@ -523,9 +553,9 @@ const App = {
                 App.showToast('请先填写 txt 文件 URL', 'error');
                 return;
             }
-            // 先保存再拉取（用最新表单值，含令牌）
+            // 先保存再同步（用最新表单值，含令牌；双向模式自动走双向同步）
             CloudSync.saveConfig(collectForm());
-            const result = await CloudSync.fetchManual();
+            const result = await CloudSync.syncNow();
             if (result.ok) {
                 statusEl.textContent = CloudSync.formatLastFetch();
                 statusEl.classList.add('has-fetch');
