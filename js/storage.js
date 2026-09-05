@@ -6,12 +6,37 @@ const Storage = {
     STORAGE_KEY: 'custom_favorites_data_v3',
 
     /**
-     * 默认数据结构（空数据）
+     * 默认数据结构（首次打开的初始收藏数据）
      */
     getDefaultData() {
         return {
-            folders: [],
-            bookmarks: [],
+            folders: [
+                {
+                    id: 'f_01',
+                    name: '一级目录01',
+                    children: [
+                        {
+                            id: 'f_01_02',
+                            name: '二级目录',
+                            children: []
+                        }
+                    ]
+                },
+                {
+                    id: 'f_02',
+                    name: '一级目录02',
+                    children: []
+                }
+            ],
+            bookmarks: [
+                { id: 'b_01_1', title: '百度', url: 'https://www.baidu.com/', folderId: 'f_01' },
+                { id: 'b_01_2', title: '必应', url: 'https://cn.bing.com/', folderId: 'f_01' },
+                { id: 'b_01_3', title: '搜狗', url: 'https://www.sogou.com/', folderId: 'f_01' },
+                { id: 'b_01_02_1', title: '必应', url: 'https://cn.bing.com/', folderId: 'f_01_02' },
+                { id: 'b_02_1', title: '百度', url: 'https://www.baidu.com/', folderId: 'f_02' },
+                { id: 'b_02_2', title: '必应', url: 'https://cn.bing.com/', folderId: 'f_02' },
+                { id: 'b_02_3', title: '搜狗', url: 'https://www.sogou.com/', folderId: 'f_02' }
+            ],
             folderOrder: {},
             settings: {
                 language: 'zh-CN'
