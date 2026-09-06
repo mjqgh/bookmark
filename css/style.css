@@ -513,6 +513,11 @@ body.resizing .resizer {
     transform: rotate(90deg);
 }
 
+/* 展开状态：箭头颜色变为选中文案同款蓝色，颜色上也提供视觉反馈 */
+.tree-node-header.expanded > .tree-toggle {
+    color: #1a73e8;
+}
+
 .tree-toggle svg {
     display: block;
 }
