@@ -1270,6 +1270,8 @@ body.drag-locked .drag-handle {
     user-select: none;
     font-size: 13px;
     color: #555;
+    /* 不拉伸占满整行，热区仅包住复选框和文字，避免滑动时误触 */
+    align-self: flex-start;
 }
 .cloud-sync-enable input[type="checkbox"] {
     width: 16px;
