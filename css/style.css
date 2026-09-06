@@ -390,8 +390,8 @@ body.resizing .resizer {
 
 .sync-btn svg {
     display: block;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
 }
 
 /* 同步中：顺时针转圈 */
@@ -1801,16 +1801,6 @@ body.drag-locked .drag-handle {
         padding: 8px 12px;
         padding-right: 76px !important; /* 移动端预留两个按钮空间 */
         font-size: 14px;
-    }
-
-    /* 移动端：同步按钮加大触控热区 */
-    .sync-btn {
-        width: 40px;
-        height: 40px;
-    }
-    .sync-btn svg {
-        width: 24px;
-        height: 24px;
     }
 
     .folder-tree {
