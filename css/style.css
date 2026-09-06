@@ -644,6 +644,23 @@ body.drag-locked .drag-handle {
 }
 
 /* 内联收藏项布局：精确镜像 .tree-node-header 的 toggle(18) + folder-icon(14,mr6) + label 结构 */
+.tree-bookmarks {
+    position: relative;
+}
+
+/* 层级缩进参考线（收藏页版）：与 .tree-children .tree-node::before 完全对齐，
+   让"只有收藏页的文件夹"展开后也显示同款灰线，嵌套视觉一致 */
+.tree-bookmarks::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #e2e6ec;
+    pointer-events: none;
+}
+
 .tree-bookmark-item {
     display: flex;
     align-items: center;
