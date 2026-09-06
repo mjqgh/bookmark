@@ -362,6 +362,51 @@ body.resizing .resizer {
     display: block;
 }
 
+/* 立即同步按钮（默认隐藏，配置了云同步才显示） */
+.sync-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f8f8;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.sync-btn:hover {
+    background: #e8f6ef;
+    border-color: #219f68;
+}
+
+.sync-btn:active {
+    background: #d4efdd;
+}
+
+.sync-btn svg {
+    display: block;
+}
+
+/* 同步中：顺时针转圈 */
+.sync-btn.syncing svg {
+    animation: sync-spin 0.9s linear infinite;
+}
+
+@keyframes sync-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 同步完成：绿色勾短暂展示 */
+.sync-btn.success svg {
+    animation: none;
+}
+
 /* ==================== 文件夹树 ==================== */
 .folder-tree {
     flex: 1;
