@@ -1263,7 +1263,7 @@ body.drag-locked .drag-handle {
 }
 
 .cloud-sync-enable {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
