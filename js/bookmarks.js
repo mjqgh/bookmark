@@ -484,30 +484,41 @@ const Bookmarks = {
         const faviconSources = [
             `https://a.favicon.im/${domain}`,
             `https://toolb.cn/favicon/${domain}`,
+            urlObj ? `${urlObj.protocol}//${domain}/favicon.ico` : null,
             `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-            urlObj ? `${urlObj.protocol}//${domain}/favicon.ico` : null
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
         ].filter(Boolean);
-        
+
         const img = document.createElement('img');
         img.alt = '';
         let srcIdx = 0;
+        let timer = null;
+        let finished = false;
         const tryNext = () => {
+            if (finished) return;
+            clearTimeout(timer);
             if (srcIdx < faviconSources.length) {
                 img.src = faviconSources[srcIdx++];
+                // 单源限时 3s：被墙源（google/duckduckgo）在大陆网络下可能挂起 30s+，
+                // 超时直接切换下一个，避免长时间停在占位图上
+                timer = setTimeout(tryNext, 3000);
             } else {
                 // 所有源都失败了，保留首字母占位（固定哈希色）
+                finished = true;
                 favicon.innerHTML = firstChar;
             }
         };
         img.onerror = tryNext;
         img.onload = () => {
+            if (finished) return;
             // 部分服务对无 favicon 站点返回 1x1/2x2 空白占位图（HTTP 200），
             // 解码成功会触发 onload，这里按实际尺寸识别为失败，继续尝试下一个源
             if (img.naturalWidth <= 2 || img.naturalHeight <= 2) {
                 tryNext();
                 return;
             }
+            finished = true;
+            clearTimeout(timer);
             favicon.innerHTML = '';
             favicon.appendChild(img);
         };

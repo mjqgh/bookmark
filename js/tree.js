@@ -737,33 +737,45 @@ const Tree = {
                     const domain = urlObj.hostname;
                     const firstChar = (bookmark.title || domain).charAt(0).toUpperCase();
 
-                    // 多源 favicon fallback：favicon.im → toolb.cn → DuckDuckGo → Google → 直连域名
+                    // 多源 favicon fallback：favicon.im → toolb.cn → 直连域名 → DuckDuckGo → Google
+                    // （直连提前：对国内站点更快更准；被墙源放最后，靠超时快速跳过）
                     const faviconSources = [
                         `https://a.favicon.im/${domain}`,
                         `https://toolb.cn/favicon/${domain}`,
+                        `${urlObj.protocol}//${domain}/favicon.ico`,
                         `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-                        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-                        `${urlObj.protocol}//${domain}/favicon.ico`
+                        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
                     ];
+
+                    // 先渲染首字母占位（彩色底），favicon 加载成功后再替换，
+                    // 避免加载/挂起期间出现白块
+                    const fb = document.createElement('span');
+                    fb.className = 'tree-bookmark-title-favicon-fallback';
+                    fb.textContent = firstChar;
+                    fb.style.background = `hsl(${Bookmarks.hashHue(domain || bookmark.title || '?')}, 62%, 50%)`;
+                    fb.style.color = '#fff';
+                    titleWrap.insertBefore(fb, titleWrap.firstChild);
 
                     const fav = document.createElement('img');
                     fav.className = 'tree-bookmark-title-favicon';
                     fav.alt = '';
                     fav.loading = 'lazy';
+                    fav.style.visibility = 'hidden';  // 加载期间隐藏，只显示首字母占位
 
-                    // 逐级 fallback：每个源失败后尝试下一个，全部失败则显示首字母
+                    // 逐级 fallback：每个源失败/超时/空白占位图后尝试下一个，全部失败保留首字母
                     let srcIdx = 0;
+                    let timer = null;
+                    let finished = false;
                     const tryNext = () => {
+                        if (finished) return;
+                        clearTimeout(timer);
                         if (srcIdx < faviconSources.length) {
                             fav.src = faviconSources[srcIdx++];
+                            // 单源限时 3s：被墙源（google/duckduckgo）在大陆网络下
+                            // 可能挂起 30s+，超时直接切换下一个，避免长时间无图标
+                            timer = setTimeout(tryNext, 3000);
                         } else {
-                            // 所有源都失败了，显示首字母占位（固定哈希色，与右侧列表一致）
-                            const fb = document.createElement('span');
-                            fb.className = 'tree-bookmark-title-favicon-fallback';
-                            fb.textContent = firstChar;
-                            fb.style.background = `hsl(${Bookmarks.hashHue(domain || bookmark.title || '?')}, 62%, 50%)`;
-                            fb.style.color = '#fff';
-                            titleWrap.insertBefore(fb, titleWrap.firstChild);
+                            finished = true;  // 全部失败：保留首字母占位，移除 img
                             fav.remove();
                         }
                     };
@@ -771,9 +783,15 @@ const Tree = {
                     // 部分服务对无 favicon 站点返回 1x1/2x2 空白占位图（HTTP 200），
                     // 触发 onload 时按实际尺寸识别为失败，继续尝试下一个源
                     fav.onload = () => {
+                        if (finished) return;
                         if (fav.naturalWidth <= 2 || fav.naturalHeight <= 2) {
                             tryNext();
+                            return;
                         }
+                        finished = true;
+                        clearTimeout(timer);
+                        fb.remove();  // 加载成功：移除首字母，显示真实 favicon
+                        fav.style.visibility = '';
                     };
                     tryNext();  // 开始尝试第一个源
 
