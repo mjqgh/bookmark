@@ -502,6 +502,12 @@ const Bookmarks = {
         };
         img.onerror = tryNext;
         img.onload = () => {
+            // 部分服务对无 favicon 站点返回 1x1/2x2 空白占位图（HTTP 200），
+            // 解码成功会触发 onload，这里按实际尺寸识别为失败，继续尝试下一个源
+            if (img.naturalWidth <= 2 || img.naturalHeight <= 2) {
+                tryNext();
+                return;
+            }
             favicon.innerHTML = '';
             favicon.appendChild(img);
         };

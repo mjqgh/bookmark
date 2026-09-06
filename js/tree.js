@@ -768,6 +768,13 @@ const Tree = {
                         }
                     };
                     fav.onerror = tryNext;
+                    // 部分服务对无 favicon 站点返回 1x1/2x2 空白占位图（HTTP 200），
+                    // 触发 onload 时按实际尺寸识别为失败，继续尝试下一个源
+                    fav.onload = () => {
+                        if (fav.naturalWidth <= 2 || fav.naturalHeight <= 2) {
+                            tryNext();
+                        }
+                    };
                     tryNext();  // 开始尝试第一个源
 
                     titleWrap.appendChild(fav);
