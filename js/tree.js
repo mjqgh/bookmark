@@ -759,8 +759,9 @@ const Tree = {
                     const fav = document.createElement('img');
                     fav.className = 'tree-bookmark-title-favicon';
                     fav.alt = '';
-                    fav.loading = 'lazy';
-                    fav.style.visibility = 'hidden';  // 加载期间隐藏，只显示首字母占位
+                    // img 不先插入 DOM（避免 hidden 占位产生空白间隙），
+                    // 在内存中完成多源加载，成功后才替换首字母占位；
+                    // detached img 不能用 loading=lazy（可能永不触发加载），用默认立即加载
 
                     // 逐级 fallback：每个源失败/超时/空白占位图后尝试下一个，全部失败保留首字母
                     let srcIdx = 0;
@@ -775,8 +776,7 @@ const Tree = {
                             // 可能挂起 30s+，超时直接切换下一个，避免长时间无图标
                             timer = setTimeout(tryNext, 3000);
                         } else {
-                            finished = true;  // 全部失败：保留首字母占位，移除 img
-                            fav.remove();
+                            finished = true;  // 全部失败：保留首字母占位，img 弃置不插入
                         }
                     };
                     fav.onerror = tryNext;
@@ -790,12 +790,9 @@ const Tree = {
                         }
                         finished = true;
                         clearTimeout(timer);
-                        fb.remove();  // 加载成功：移除首字母，显示真实 favicon
-                        fav.style.visibility = '';
+                        fb.replaceWith(fav);  // 加载成功：用真实 favicon 原位替换首字母
                     };
                     tryNext();  // 开始尝试第一个源
-
-                    titleWrap.appendChild(fav);
                 } catch (err) {
                     // URL 解析失败，直接用首字母（固定哈希色）
                     const firstChar = (bookmark.title || '?').charAt(0).toUpperCase();
