@@ -24,7 +24,8 @@ body {
 .sidebar {
     width: 320px;
     min-width: 200px;
-    max-width: 600px;
+    /* max-width 不写死：拖拽宽度由 JS 按视口比例动态夹取（宽屏可超过 600px）；
+       移动端在 @media 里另有 max-width: 100% */
     background: #fff;
     border-right: none;
     display: flex;

@@ -309,13 +309,23 @@ const App = {
         if (!resizer || !sidebar || !main) return;
         
         const MIN_WIDTH = 200;
-        const MAX_WIDTH = 600;
+        const MAX_WIDTH_MIN = 600;  // 宽度上限的最低值：窄屏也保证能拖到 600（若窗口允许）
+        const SIDEBAR_MAX_RATIO = 0.6;  // 侧栏最宽不超过视口的 60%
         const MIN_MAIN_WIDTH = 320; // 右侧主内容区最小宽度
-        
+
+        // 侧栏宽度上限：视口的 60% 与「窗口 - 主内容最小宽度」取小者，且不低于 600
+        const getMaxWidth = () => {
+            const containerWidth = document.querySelector('.app').getBoundingClientRect().width;
+            return Math.min(
+                Math.max(MAX_WIDTH_MIN, containerWidth * SIDEBAR_MAX_RATIO),
+                containerWidth - MIN_MAIN_WIDTH
+            );
+        };
+
         // 从 localStorage 恢复宽度
         const savedWidth = localStorage.getItem('sidebar_width');
         if (savedWidth) {
-            const w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, parseInt(savedWidth, 10) || 320));
+            const w = Math.max(MIN_WIDTH, Math.min(getMaxWidth(), parseInt(savedWidth, 10) || 320));
             sidebar.style.width = w + 'px';
         }
         
@@ -350,9 +360,7 @@ const App = {
             if (!isResizing) return;
             
             const newWidth = startWidth + (e.clientX - startX);
-            const containerWidth = document.querySelector('.app').getBoundingClientRect().width;
-            const maxWidth = Math.min(MAX_WIDTH, containerWidth - MIN_MAIN_WIDTH);
-            const clampedWidth = Math.max(MIN_WIDTH, Math.min(maxWidth, newWidth));
+            const clampedWidth = Math.max(MIN_WIDTH, Math.min(getMaxWidth(), newWidth));
             
             // 更新反馈指示线
             if (indicator) {
@@ -385,6 +393,16 @@ const App = {
             window.dispatchEvent(new Event('resize'));
         });
         
+        // 窗口缩放后：把侧栏宽度重新夹到允许范围内，防止主内容区被挤没
+        window.addEventListener('resize', () => {
+            if (isResizing) return;
+            const cur = sidebar.getBoundingClientRect().width;
+            const clamped = Math.max(MIN_WIDTH, Math.min(getMaxWidth(), cur));
+            if (Math.abs(clamped - cur) > 1) {
+                sidebar.style.width = clamped + 'px';
+            }
+        });
+
         // 双击 resizer 恢复默认宽度
         resizer.addEventListener('dblclick', () => {
             sidebar.style.width = '320px';
