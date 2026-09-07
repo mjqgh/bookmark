@@ -199,6 +199,7 @@ const Config = {
     
     /**
      * 处理导入内容（自动识别 txt 备份 / Chrome·Edge bookmarks.html）
+     * @returns {boolean} true=数据已应用；false=内容为空/无法解析，本地数据未改动
      */
     processImport(content, skipConfirm) {
         try {
@@ -208,7 +209,7 @@ const Config = {
 
             if (!result.folders || result.folders.length === 0) {
                 if (!skipConfirm) App.showToast('导入失败：未找到有效的文件夹数据', 'error');
-                return;
+                return false;
             }
             
             const count = result.bookmarks.length;
@@ -298,6 +299,7 @@ const Config = {
                     if (ft) ft.scrollTop = uiState.treeScrollTop || 0;
                     if (bl) bl.scrollTop = uiState.listScrollTop || 0;
                 });
+                return true;
             } else {
                 // ===== 本地文件/URL 导入：原行为（全部展开 + 选中第一个文件夹）=====
                 Tree.expandedNodes.clear();
@@ -322,6 +324,7 @@ const Config = {
                 // 只有本地文件导入（skipConfirm 为假）才关弹窗 + 弹"导入成功"。
                 document.getElementById('configModal').classList.remove('active');
                 App.showToast(`导入成功：${folderCount} 个文件夹，${count} 个收藏`, 'success');
+                return true;
             }
 
         } catch (err) {
@@ -330,6 +333,7 @@ const Config = {
             if (!skipConfirm) {
                 App.showToast('导入失败：' + err.message, 'error');
             }
+            return false;
         }
     },
     

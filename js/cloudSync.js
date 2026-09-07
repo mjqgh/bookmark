@@ -49,6 +49,13 @@ const CloudSync = {
             localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
         }
 
+        // 迁移：rawUrl 里残留 GitHub 网页端"复制链接"带的 ?token= 临时签名（会过期）
+        if (this._config.provider === 'github' && this._config.rawUrl && this._config.rawUrl.includes('?')) {
+            this._config.rawUrl = this._config.rawUrl.replace(/\?.*$/, '');
+            this._config.fetchUrl = this._buildFetchUrl(this._config.rawUrl, 'github');
+            localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+        }
+
         if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
             this._startAutoFetch();
         }
@@ -92,7 +99,13 @@ const CloudSync = {
     saveConfig(partial) {
         // 如果 URL 变了，自动转换加速
         if (partial.rawUrl !== undefined) {
-            partial.fetchUrl = this._buildFetchUrl(partial.rawUrl, partial.provider || this._config.provider);
+            const provider = partial.provider || this._config.provider;
+            // GitHub 源：剥掉网页端"复制链接"带的 ?token=xxx 临时签名
+            // （会过期；Contents API 同步用令牌字段鉴权，不需要它；留在 URL 里还会被发给 gh-proxy）
+            if (provider === 'github' && typeof partial.rawUrl === 'string') {
+                partial.rawUrl = partial.rawUrl.replace(/\?.*$/, '');
+            }
+            partial.fetchUrl = this._buildFetchUrl(partial.rawUrl, provider);
         }
         // 二选一互斥：启用一个自动关闭另一个
         if (partial.twoWay === true) partial.enabled = false;
@@ -178,9 +191,10 @@ const CloudSync = {
         try {
             const result = await this._doFetch();
             if (result.changed) {
-                Config.processImport(result.content, true);
-                // 云端内容已应用为当前数据 → 刷新基准快照（上传冲突检测以此为准）
-                this._saveLocalSnapshot();
+                // 内容为空/无法解析时 processImport 返回 false：不更新基准快照，
+                // 避免把"空云端"误当成已同步状态导致后续永远不再上传
+                const applied = Config.processImport(result.content, true);
+                if (applied) this._saveLocalSnapshot();
                 this._config.lastFetchTs = Date.now();
                 localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
             } else {
@@ -218,7 +232,11 @@ const CloudSync = {
         try {
             const result = await this._doFetch();
             if (result.changed) {
-                Config.processImport(result.content, true);
+                const applied = Config.processImport(result.content, true);
+                if (!applied) {
+                    App.showToast('云端文件内容为空或格式无法识别，本地数据未改动', 'error');
+                    return { ok: false, reason: 'unparseable' };
+                }
                 this._saveLocalSnapshot();
                 App.showToast('拉取成功，数据已更新', 'success');
                 this._config.lastFetchTs = Date.now();
@@ -421,12 +439,15 @@ const CloudSync = {
             );
             if (pullFirst) {
                 // 拉取云端内容并应用（静默导入，保留浏览状态）
-                Config.processImport(remote.content, true);
-                this._saveLocalSnapshot();
-                this._config.lastFetchTs = Date.now();
-                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-                App.showToast('已拉取云端版本，本地未上传的改动未发送', 'success');
-                return { ok: true, reason: 'pulled_instead' };
+                const applied = Config.processImport(remote.content, true);
+                if (applied) {
+                    this._saveLocalSnapshot();
+                    this._setSyncedNow();
+                    App.showToast('已拉取云端版本，本地未上传的改动未发送', 'success');
+                } else {
+                    App.showToast('云端内容为空或无法识别，已取消', 'error');
+                }
+                return { ok: applied, reason: applied ? 'pulled_instead' : 'remote_unparseable' };
             }
             // 用户选择强制覆盖 → 带 sha 更新
         }
@@ -553,14 +574,24 @@ const CloudSync = {
             let baseline = null;
             try { baseline = localStorage.getItem('cloud_sync_last_local_snapshot'); } catch (e) { /* ignore */ }
 
-            // —— 云端无文件 → 首次同步，直接上传本地 ——
-            if (!remote.exists) {
-                if (!local) {
-                    if (!silent) App.showToast('本地与云端都没有数据', 'info');
+            // 有效同步数据的判定：至少包含一个文件夹行（#开头）。
+            // GitHub 网页端新建的空文件 content 为 ''，不能当作"云端版本"应用到本地
+            const hasFolderData = (txt) => /^#+\s*\S/m.test(txt || '');
+            const localValid = hasFolderData(local);
+            const remoteValid = remote.exists && hasFolderData(remote.content);
+
+            // —— 云端无有效数据（文件不存在 / 空占位 / 内容损坏）——
+            // 本地有数据 → 首次同步，上传本地（文件存在但为空时带 sha 更新）；两边都空 → 无事可做
+            if (!remoteValid) {
+                if (!localValid) {
+                    this._setSyncedNow();
+                    if (!silent) App.showToast('本地与云端都没有有效数据', 'info');
                     return { ok: true, action: 'noop' };
                 }
-                const r = await this._doUpload(parsed, local, null, silent);
-                if (r.ok && !silent) App.showToast('首次同步：本地数据已上传云端', 'success');
+                const r = await this._doUpload(parsed, local, remote.exists ? remote.sha : null, silent);
+                if (r.ok && !silent) {
+                    App.showToast(remote.exists ? '云端文件为空，已上传本地数据' : '首次同步：本地数据已上传云端', 'success');
+                }
                 return r.ok ? { ok: true, action: 'uploaded' } : r;
             }
 
@@ -571,8 +602,12 @@ const CloudSync = {
                 return { ok: true, action: 'in_sync' };
             }
 
-            const localChanged = baseline ? (local !== baseline) : false;
-            const remoteChanged = baseline ? (remote.content !== baseline) : true; // 无基线时按"云端已变"处理
+            // 有基线则按基线判断双方改动；无基线时：
+            //   本地有数据 + 云端有数据但不一致 → 双方都视为"已改"，走并集合并（不丢任何一边）
+            //   本地为空 → 视为仅云端变（直接应用云端）
+            const baselineValid = hasFolderData(baseline);
+            const localChanged = baselineValid ? (local !== baseline) : localValid;
+            const remoteChanged = baselineValid ? (remote.content !== baseline) : remoteValid;
 
             // —— 仅本地变 → 上传本地 ——
             if (localChanged && !remoteChanged) {
@@ -581,24 +616,32 @@ const CloudSync = {
                 return r.ok ? { ok: true, action: 'uploaded' } : r;
             }
 
-            // —— 仅云端变（或无基线）→ 应用云端 ——
+            // —— 仅云端变（或本地为空的首次同步）→ 应用云端 ——
             if (!localChanged && remoteChanged) {
-                Config.processImport(remote.content, true);
+                const applied = Config.processImport(remote.content, true);
+                if (!applied) {
+                    if (!silent) App.showToast('云端内容为空或无法识别，本地数据未改动', 'error');
+                    return { ok: false, reason: 'remote_unparseable' };
+                }
                 this._saveLocalSnapshot();
                 this._setSyncedNow();
                 if (!silent) App.showToast('云端更新已应用到本地', 'success');
                 return { ok: true, action: 'pulled' };
             }
 
-            // —— 双方都变 → 三方合并 ——
-            const merged = this._mergeContents(baseline, local, remote.content);
+            // —— 双方都变 → 三方合并（无基线时为双方并集）——
+            const merged = this._mergeContents(baselineValid ? baseline : null, local, remote.content);
             if (!merged) {
                 if (!silent) App.showToast('合并失败：请手动导出备份后重试', 'error');
                 return { ok: false, reason: 'merge_failed' };
             }
             if (merged === remote.content) {
                 // 合并结果与云端一致（本地改动是云端的子集）→ 仅应用云端
-                Config.processImport(remote.content, true);
+                const applied = Config.processImport(remote.content, true);
+                if (!applied) {
+                    if (!silent) App.showToast('云端内容无法识别，本地数据未改动', 'error');
+                    return { ok: false, reason: 'remote_unparseable' };
+                }
                 this._saveLocalSnapshot();
                 this._setSyncedNow();
                 if (!silent) App.showToast('已与云端对齐', 'success');
@@ -606,7 +649,11 @@ const CloudSync = {
             }
 
             // 先应用合并结果到本地（失败则中止，避免快照错乱）
-            Config.processImport(merged, true);
+            const applied = Config.processImport(merged, true);
+            if (!applied) {
+                if (!silent) App.showToast('合并结果无法应用，本地数据未改动', 'error');
+                return { ok: false, reason: 'merge_unapplyable' };
+            }
             this._saveLocalSnapshot();
 
             // 回写云端（sha 仍有效：读取后云端未被本进程改过）
