@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=48">
+    <link rel="stylesheet" href="css/style.css?v=49">
 </head>
 <body>
     <div class="app">
@@ -375,6 +375,33 @@ Photopea,https://www.photopea.com/</pre>
         </div>
     </div>
 
+    <!-- 云端同步冲突三选一弹窗 -->
+    <div class="modal" id="syncConflictModal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>⚠️ 云端内容与本地不一致</h3>
+                <button class="modal-close" data-close="syncConflictModal">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="conflict-desc">可能其他设备已上传新版本，或本地有尚未同步的改动。请选择如何处理：</p>
+                <div class="conflict-actions">
+                    <button class="btn btn-default conflict-btn" id="conflictPull">
+                        <span class="conflict-btn-title">⬇️ 拉取云端版本</span>
+                        <span class="conflict-btn-sub">用云端数据覆盖本地，本地未同步的改动会丢失</span>
+                    </button>
+                    <button class="btn btn-purge conflict-btn" id="conflictForce">
+                        <span class="conflict-btn-title">⬆️ 强制覆盖云端</span>
+                        <span class="conflict-btn-sub">用当前本地数据覆盖云端，其他设备的上传会丢失</span>
+                    </button>
+                    <button class="btn btn-primary conflict-btn" id="conflictCancel">
+                        <span class="conflict-btn-title">取消，先备份</span>
+                        <span class="conflict-btn-sub">什么都不做；退出后可到配置面板导出 txt / html 备份</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Sortable.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
@@ -383,7 +410,7 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/tree.js?v=57"></script>
     <script src="js/bookmarks.js?v=17"></script>
     <script src="js/config.js?v=10"></script>
-    <script src="js/cloudSync.js?v=10"></script>
+    <script src="js/cloudSync.js?v=11"></script>
     <script src="js/trash.js?v=2"></script>
     <script src="js/app.js?v=32"></script>
 </body>

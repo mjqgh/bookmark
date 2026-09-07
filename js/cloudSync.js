@@ -380,12 +380,62 @@ const CloudSync = {
     },
 
     /**
+     * 冲突三选一弹窗（替代原生 confirm：原生弹窗"取消"只能绑定一个动作，
+     * 无法表达"什么都不做、先退出备份"）
+     * @returns {Promise<'pull'|'force'|'cancel'>}
+     *   pull   = 拉取云端版本覆盖本地
+     *   force  = 强制用本地覆盖云端
+     *   cancel = 中止（点"取消"按钮 / × / 遮罩 / Esc 均视为 cancel）
+     */
+    _confirmConflict() {
+        return new Promise(resolve => {
+            const modal = document.getElementById('syncConflictModal');
+            const btnPull = document.getElementById('conflictPull');
+            const btnForce = document.getElementById('conflictForce');
+            const btnCancel = document.getElementById('conflictCancel');
+            const closeBtn = modal.querySelector('.modal-close');
+
+            let done = false;
+            const finish = (choice) => {
+                if (done) return;
+                done = true;
+                modal.classList.remove('active');
+                btnPull.removeEventListener('click', onPull);
+                btnForce.removeEventListener('click', onForce);
+                btnCancel.removeEventListener('click', onCancel);
+                closeBtn.removeEventListener('click', onCancel);
+                modal.removeEventListener('click', onOverlay);
+                document.removeEventListener('keydown', onKey);
+                resolve(choice);
+            };
+            const onPull = () => finish('pull');
+            const onForce = () => finish('force');
+            const onCancel = () => finish('cancel');
+            const onOverlay = (e) => { if (e.target === modal) finish('cancel'); };
+            // 注意：不能依赖 modal.classList.contains('active') 判断——app.js 的全局
+            // Esc 处理先执行并移除了 active 类，会导致这里不 resolve、Promise 永久挂起。
+            // 此监听仅在弹窗打开期间注册，finish 后立即移除，无需 active 判断。
+            const onKey = (e) => {
+                if (e.key === 'Escape') finish('cancel');
+            };
+
+            btnPull.addEventListener('click', onPull);
+            btnForce.addEventListener('click', onForce);
+            btnCancel.addEventListener('click', onCancel);
+            closeBtn.addEventListener('click', onCancel);
+            modal.addEventListener('click', onOverlay);
+            document.addEventListener('keydown', onKey);
+            modal.classList.add('active');
+        });
+    },
+
+    /**
      * 手动上传到 GitHub（UI 按钮调用）
      * 冲突决策：
      *   远程无文件               → 直接创建
      *   远程==本地               → 已是最新，无需上传
      *   远程!=本地 且 远程==基准  → 仅本地改过，安全更新
-     *   远程!=本地 且 远程!=基准  → 云端被其他设备改过：弹窗【确定=先拉取 / 取消=强制覆盖】
+     *   远程!=本地 且 远程!=基准  → 云端被其他设备改过：三选一弹窗（拉取 / 强制覆盖 / 取消备份）
      */
     async uploadManual() {
         if (this._config.provider !== 'github') {
@@ -432,12 +482,15 @@ const CloudSync = {
         const cloudChangedByOther = baseline ? (remote.content !== baseline) : true;
 
         if (cloudChangedByOther) {
-            const pullFirst = confirm(
-                '云端内容与本地不一致（可能其他设备已上传新版本）。\n\n' +
-                '【确定】先拉取云端版本（覆盖本地数据，建议先导出备份）\n' +
-                '【取消】强制用当前本地数据覆盖云端'
-            );
-            if (pullFirst) {
+            const choice = await this._confirmConflict();
+
+            if (choice === 'cancel') {
+                // 什么都不做，用户可先去配置面板导出 txt / html 备份
+                App.showToast('已取消，本地与云端均未改动', 'info');
+                return { ok: false, reason: 'user_abort' };
+            }
+
+            if (choice === 'pull') {
                 // 拉取云端内容并应用（静默导入，保留浏览状态）
                 const applied = Config.processImport(remote.content, true);
                 if (applied) {
@@ -449,7 +502,7 @@ const CloudSync = {
                 }
                 return { ok: applied, reason: applied ? 'pulled_instead' : 'remote_unparseable' };
             }
-            // 用户选择强制覆盖 → 带 sha 更新
+            // choice === 'force' → 继续向下，带 sha 强制覆盖
         }
 
         return this._doUpload(parsed, localContent, remote.sha);

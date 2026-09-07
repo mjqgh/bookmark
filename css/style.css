@@ -1181,6 +1181,51 @@ body.drag-locked .drag-handle {
     border-top: 1px solid #eee;
 }
 
+/* ==================== 云端冲突三选一弹窗 ==================== */
+.modal-sm {
+    max-width: 440px;
+}
+
+.conflict-desc {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+    margin: 0 0 14px;
+}
+
+.conflict-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.conflict-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: 100%;
+    padding: 10px 14px;
+    white-space: normal;
+    text-align: left;
+}
+
+.conflict-btn-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.conflict-btn-sub {
+    font-size: 12px;
+    font-weight: normal;
+    color: #999;
+    line-height: 1.4;
+}
+
+.btn-primary .conflict-btn-sub {
+    color: rgba(255, 255, 255, 0.85);
+}
+
 /* ==================== 表单 ==================== */
 .form-group {
     margin-bottom: 16px;
