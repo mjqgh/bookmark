@@ -56,6 +56,16 @@ const CloudSync = {
             localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
         }
 
+        // 迁移：旧 bug 可能把"空云端应用失败"误存成基线快照（导致本地永远不上传）。
+        // 基线应该始终包含有效的文件夹数据（#xxx 行）。如果基线里没有 → 清空让 syncTwoWay 重新走首次同步逻辑。
+        // 同时也要排除基线刚好等于空串（Config.serializeData 本地没数据会返回 ''）。
+        try {
+            const baseline = localStorage.getItem('cloud_sync_last_local_snapshot');
+            if (baseline !== null && !this._hasValidContent(baseline)) {
+                localStorage.removeItem('cloud_sync_last_local_snapshot');
+            }
+        } catch (e) { /* ignore */ }
+
         if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
             this._startAutoFetch();
         }
@@ -296,6 +306,10 @@ const CloudSync = {
                 if (etag) this._config.lastETag = etag;
 
                 const content = await resp.text();
+                // 空文件或无有效文件夹数据 → 视为未变更，交给调用方处理
+                if (!this._hasValidContent(content)) {
+                    return { changed: false, content: null };
+                }
                 return { changed: true, content };
             } catch (e) {
                 lastErr = e;
@@ -561,6 +575,14 @@ const CloudSync = {
     },
 
     /**
+     * 判断 txt 内容是否包含有效同步数据（至少一个 #folder 行）。
+     * 空文件 / 纯空白 / 纯乱码 一律算"无效"，不会被当作"云端版本"应用到本地。
+     */
+    _hasValidContent(txt) {
+        return /^#+\s*\S/m.test(txt || '');
+    },
+
+    /**
      * UTF-8 文本 → base64（btoa 不支持中文，必须经 TextEncoder）
      */
     _utf8ToBase64(str) {
@@ -629,9 +651,8 @@ const CloudSync = {
 
             // 有效同步数据的判定：至少包含一个文件夹行（#开头）。
             // GitHub 网页端新建的空文件 content 为 ''，不能当作"云端版本"应用到本地
-            const hasFolderData = (txt) => /^#+\s*\S/m.test(txt || '');
-            const localValid = hasFolderData(local);
-            const remoteValid = remote.exists && hasFolderData(remote.content);
+            const localValid = this._hasValidContent(local);
+            const remoteValid = remote.exists && this._hasValidContent(remote.content);
 
             // —— 云端无有效数据（文件不存在 / 空占位 / 内容损坏）——
             // 本地有数据 → 首次同步，上传本地（文件存在但为空时带 sha 更新）；两边都空 → 无事可做
@@ -658,7 +679,7 @@ const CloudSync = {
             // 有基线则按基线判断双方改动；无基线时：
             //   本地有数据 + 云端有数据但不一致 → 双方都视为"已改"，走并集合并（不丢任何一边）
             //   本地为空 → 视为仅云端变（直接应用云端）
-            const baselineValid = hasFolderData(baseline);
+            const baselineValid = this._hasValidContent(baseline);
             const localChanged = baselineValid ? (local !== baseline) : localValid;
             const remoteChanged = baselineValid ? (remote.content !== baseline) : remoteValid;
 
