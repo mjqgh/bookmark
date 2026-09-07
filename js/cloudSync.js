@@ -1,35 +1,37 @@
 /**
  * 云端同步模块 —— 用户自带存储，零后端
  *
- * 支持：GitHub (gh-proxy 加速)、WebDAV（坚果云/Nextcloud）、
- *       国内对象存储（七牛/阿里 OSS）等任意能被 fetch 到的 txt URL
+ * 存储源：GitHub（Contents API 读写统一链路，githubToken 负责鉴权）
+ * 其他源（WebDAV/七牛/阿里云）：暂未支持统一链路，保留 fetchRawUrl 直读
  *
  * 工作方式：
- *   拉取模式（所有源）—— 云端 txt 是 Source of Truth，定时/手动拉取
- *   双向同步模式（仅 GitHub + 令牌）—— 定时/手动双向同步，与拉取模式二选一：
+ *   单向拉取（GitHub + 令牌）—— Contents API 读，sha 变才应用
+ *   双向同步（GitHub + 令牌）—— 定时/手动双向同步，与拉取模式二选一：
  *     · 仅本地变了 → 自动上传本地
  *     · 仅云端变了 → 自动应用云端
  *     · 两边都变了 → 以基线快照做三方合并（新增合并、删除传播），合并结果回写云端
- *   上传（手动"上传到云端"）—— 走 GitHub Contents API
- *     · api.github.com 正确支持 CORS 预检（raw 域名不支持），故上传直连 API，不走 gh-proxy
- *     · 二态写入：远程无文件→创建（不带 sha）；有文件→更新（必须带最新 sha，否则 409）
- *     · 冲突：上传前 GET 远程内容与本地基准快照对比，云端被其他设备改过 → 弹窗二选一
+ *   手动上传 —— GitHub Contents API PUT（二态写入：无文件创建 / 有文件更新）
  *   本地改动 → 下次拉取前检测冲突 → 提示用户导出保存再拉取
+ *
+ * URL 字段说明：
+ *   rawUrl       — 用户填的 GitHub raw 链接（仅用于解析 owner/repo/branch/path，
+ *                  鉴权走 githubToken 字段，不再把 URL 作为鉴权凭证）
+ *   fetchUrl     — 已废弃（之前 gh-proxy 加速用，现在 Contents API 直连）
+ *   githubToken  — GitHub 个人访问令牌（repo 权限，存本机 localStorage）
  */
 
 const CloudSync = {
     // 配置结构：
     // {
-    //   provider: 'github' | 'webdav' | 'qiniu' | 'aliyun' | 'custom',
-    //   rawUrl:  'https://raw.githubusercontent.com/...',   // 用户填的原始 URL
-    //   fetchUrl:'https://gh-proxy.com/https://raw.githubusercontent.com/...',  // 实际拉取的（加速后）URL
-    //   githubToken: 'ghp_xxx',                             // GitHub 个人访问令牌（仅 github 双向同步用，仅存本机）
-    //   intervalMin: 15,                                      // 拉取间隔（分钟）
-    //   enabled: true,                                        // 自动拉取模式（与 twoWay 互斥）
-    //   twoWay: false,                                        // 自动双向同步模式（与 enabled 互斥，需 GitHub + 令牌）
+    //   provider: 'github',
+    //   rawUrl:  'https://raw.githubusercontent.com/owner/repo/refs/heads/main/bookmark.txt',
+    //   githubToken: 'ghp_xxx',     // 统一鉴权字段（单向/双向都用）
+    //   intervalMin: 15,            // 定时间隔（分钟）
+    //   enabled: false,             // 自动拉取模式（与 twoWay 互斥）
+    //   twoWay: false,              // 自动双向同步模式（与 enabled 互斥）
     //   lastFetchTs: 0,
-    //   lastETag: '',
-    //   localBackupTs: 0                                      // 冲突检测用：上次同步时本地数据快照
+    //   lastSha: '',                // 上次读到的云端 sha，用于去重
+    //   localBackupTs: 0
     // }
     _config: null,
     _timer: null,
@@ -40,25 +42,21 @@ const CloudSync = {
     init() {
         this._config = this._loadConfig();
 
-        // 老用户迁移：如果 fetchUrl 还是旧的 jsDelivr 格式，自动切换为 gh-proxy
-        if (this._config.provider === 'github' 
-            && this._config.rawUrl 
-            && this._config.fetchUrl 
-            && this._config.fetchUrl.includes('jsdelivr')) {
-            this._config.fetchUrl = this._githubRawToGhProxy(this._config.rawUrl);
-            localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-        }
-
-        // 迁移：rawUrl 里残留 GitHub 网页端"复制链接"带的 ?token= 临时签名（会过期）
+        // 所有拉取路径统一走 Contents API + githubToken，不再使用 raw/gh-proxy 直连：
+        // 1. 剥掉 rawUrl 里残留的 ?token= 临时签名（GitHub 网页端"复制链接"生成，会过期）
+        //    鉴权统一用 githubToken 字段，URL 里的签名既多余又会过期
         if (this._config.provider === 'github' && this._config.rawUrl && this._config.rawUrl.includes('?')) {
             this._config.rawUrl = this._config.rawUrl.replace(/\?.*$/, '');
-            this._config.fetchUrl = this._buildFetchUrl(this._config.rawUrl, 'github');
             localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+        }
+        // 2. 老用户迁移：jsdelivr 加速链接彻底废弃，改为 GitHub 直链
+        if (this._config.rawUrl && this._config.rawUrl.includes('jsdelivr')) {
+            localStorage.removeItem('cloud_sync_config'); // 重置，让用户重配
+            this._config = this._loadConfig();
         }
 
         // 迁移：旧 bug 可能把"空云端应用失败"误存成基线快照（导致本地永远不上传）。
         // 基线应该始终包含有效的文件夹数据（#xxx 行）。如果基线里没有 → 清空让 syncTwoWay 重新走首次同步逻辑。
-        // 同时也要排除基线刚好等于空串（Config.serializeData 本地没数据会返回 ''）。
         try {
             const baseline = localStorage.getItem('cloud_sync_last_local_snapshot');
             if (baseline !== null && !this._hasValidContent(baseline)) {
@@ -66,13 +64,12 @@ const CloudSync = {
             }
         } catch (e) { /* ignore */ }
 
-        if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
+        if (this._config.enabled || this._config.twoWay) {
             this._startAutoFetch();
         }
         // 页面重新可见时立刻检查一次
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && this._config.fetchUrl && (this._config.enabled || this._config.twoWay)) {
-                // 节流：距离上次拉取 > 1 分钟才触发
+            if (!document.hidden && (this._config.enabled || this._config.twoWay)) {
                 if (Date.now() - (this._config.lastFetchTs || 0) > 60 * 1000) {
                     if (this._config.twoWay) {
                         this.syncTwoWay(true);
@@ -90,32 +87,37 @@ const CloudSync = {
     _loadConfig() {
         try {
             const raw = localStorage.getItem('cloud_sync_config');
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const cfg = JSON.parse(raw);
+                // 老用户迁移：fetchUrl / lastETag 字段已废弃
+                if ('fetchUrl' in cfg) delete cfg.fetchUrl;
+                if ('lastETag' in cfg) delete cfg.lastETag;
+                return { ...this._defaultConfig(), ...cfg };
+            }
         } catch (e) { /* ignore */ }
+        return this._defaultConfig();
+    },
+
+    _defaultConfig() {
         return {
             provider: 'github',
             rawUrl: '',
-            fetchUrl: '',
             githubToken: '',
             intervalMin: 15,
             enabled: false,
             twoWay: false,
             lastFetchTs: 0,
-            lastETag: '',
+            lastSha: '',
             localBackupTs: 0
         };
     },
 
     saveConfig(partial) {
-        // 如果 URL 变了，自动转换加速
+        // rawUrl 变更 → 剥掉 GitHub 网页端带的 ?token= 临时签名（所有模式统一走 githubToken 字段鉴权）
         if (partial.rawUrl !== undefined) {
-            const provider = partial.provider || this._config.provider;
-            // GitHub 源：剥掉网页端"复制链接"带的 ?token=xxx 临时签名
-            // （会过期；Contents API 同步用令牌字段鉴权，不需要它；留在 URL 里还会被发给 gh-proxy）
-            if (provider === 'github' && typeof partial.rawUrl === 'string') {
+            if (typeof partial.rawUrl === 'string') {
                 partial.rawUrl = partial.rawUrl.replace(/\?.*$/, '');
             }
-            partial.fetchUrl = this._buildFetchUrl(partial.rawUrl, provider);
         }
         // 二选一互斥：启用一个自动关闭另一个
         if (partial.twoWay === true) partial.enabled = false;
@@ -125,7 +127,7 @@ const CloudSync = {
         localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
 
         // 如果启用了任一模式，启动定时
-        if ((this._config.enabled || this._config.twoWay) && this._config.fetchUrl) {
+        if (this._config.enabled || this._config.twoWay) {
             this._startAutoFetch();
         } else {
             this._stopAutoFetch();
@@ -153,79 +155,59 @@ const CloudSync = {
         return 'custom';
     },
 
-    /**
-     * 根据存储源 + raw URL 构造实际拉取 URL
-     * 核心逻辑：GitHub raw → gh-proxy 加速（gh-proxy 直接在原始 URL 前加前缀即可，
-     * 缓存失效远快于 jsDelivr——jsDelivr CDN 缓存经常延迟数小时才同步更新）
-     */
-    _buildFetchUrl(rawUrl, provider) {
-        if (!rawUrl) return '';
-        provider = provider || this.detectProvider(rawUrl);
-
-        if (provider === 'github') {
-            return this._githubRawToGhProxy(rawUrl);
-        }
-        // 其他源直接用 rawUrl（本身就是 CDN 或内网服务）
-        return rawUrl;
-    },
-
-    /**
-     * GitHub raw URL → gh-proxy 加速 URL
-     * 
-     * gh-proxy 用法极简：直接把完整的 raw URL 拼到前缀后面
-     *   https://gh-proxy.com/{完整的 raw URL}
-     * 
-     * 不需要解析 owner/repo/branch/path 结构，任何 GitHub raw 格式都能处理：
-     *   旧版: https://raw.githubusercontent.com/owner/repo/main/path/to/file.txt
-     *   新版: https://raw.githubusercontent.com/owner/repo/refs/heads/main/path/to/file.txt
-     *   标签: https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0/path/to/file.txt
-     */
-    _githubRawToGhProxy(raw) {
-        try {
-            new URL(raw); // 验证 URL 合法性
-            return `https://gh-proxy.com/${raw}`;
-        } catch (e) {
-            return raw;
-        }
-    },
-
     // =====================================================
-    // 拉取
+    // 拉取（统一走 GitHub Contents API + githubToken）
     // =====================================================
 
     /**
      * 定时自动拉取（静默，失败不弹 toast）
+     * 统一走 Contents API + githubToken（和双向同步同一条鉴权链路）
      */
     async fetchSilent() {
-        if (!this._config.fetchUrl) return;
+        if (!this._config.rawUrl) return;
+        const parsed = this._parseGithubRawUrl(this._config.rawUrl);
+        if (!parsed) return;
+
         try {
-            const result = await this._doFetch();
-            if (result.changed) {
-                // 内容为空/无法解析时 processImport 返回 false：不更新基准快照，
-                // 避免把"空云端"误当成已同步状态导致后续永远不再上传
-                const applied = Config.processImport(result.content, true);
-                if (applied) this._saveLocalSnapshot();
+            const remote = await this._getRemoteFile(parsed);
+            if (!remote.exists) return; // 文件不存在，静默跳过
+
+            // sha 没变 → 跳过（Contents API 每次都返回 sha，比 raw ETag 更可靠）
+            if (remote.sha && remote.sha === this._config.lastSha) {
                 this._config.lastFetchTs = Date.now();
                 localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-            } else {
-                // ETag 没变，仅更新拉取时间
+                return;
+            }
+
+            // 规范化后有效才应用（空文件不覆盖本地）
+            const content = this._normalizeContent(remote.content);
+            if (!this._hasValidContent(content)) return;
+
+            const applied = Config.processImport(content, true);
+            if (applied) {
+                this._saveLocalSnapshot();
+                this._config.lastSha = remote.sha;
                 this._config.lastFetchTs = Date.now();
                 localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
             }
         } catch (e) {
-            // 静默失败，不打扰用户
             console.warn('[CloudSync] silent fetch failed:', e.message);
         }
     },
 
     /**
      * 手动拉取（UI 按钮调用，有 toast + 冲突检测）
-     * @returns {Promise<{ok:boolean, reason?:string}>}
+     * 统一走 Contents API + githubToken（和双向同步同一条鉴权链路）
      */
     async fetchManual() {
-        if (!this._config.fetchUrl) {
-            App.showToast('请先配置云端 URL', 'error');
-            return { ok: false, reason: 'no_url' };
+        const parsed = this._parseGithubRawUrl(this._config.rawUrl);
+        if (!parsed) {
+            App.showToast('txt URL 格式无法解析，请使用 raw.githubusercontent.com 链接', 'error');
+            return { ok: false, reason: 'bad_url' };
+        }
+        if (!this._config.githubToken) {
+            App.showToast('单向拉取已改用 GitHub Contents API，需要填写令牌（需 repo 权限）', 'error');
+            return { ok: false, reason: 'no_token' };
         }
 
         // 冲突检测：上次拉取后，本地数据是否有被改过？
@@ -240,83 +222,37 @@ const CloudSync = {
 
         App.showToast('正在从云端拉取...', 'info');
         try {
-            const result = await this._doFetch();
-            if (result.changed) {
-                const applied = Config.processImport(result.content, true);
-                if (!applied) {
-                    App.showToast('云端文件内容为空或格式无法识别，本地数据未改动', 'error');
-                    return { ok: false, reason: 'unparseable' };
-                }
-                this._saveLocalSnapshot();
-                App.showToast('拉取成功，数据已更新', 'success');
-                this._config.lastFetchTs = Date.now();
-                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
-            } else {
-                App.showToast('云端数据无变化（ETag 一致）', 'info');
-                this._config.lastFetchTs = Date.now();
-                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+            const remote = await this._getRemoteFile(parsed);
+            if (!remote.exists) {
+                App.showToast('云端文件不存在', 'error');
+                return { ok: false, reason: 'not_found' };
             }
+
+            // sha 没变 → 跳过
+            if (remote.sha && remote.sha === this._config.lastSha) {
+                this._config.lastFetchTs = Date.now();
+                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+                App.showToast('云端数据无变化', 'info');
+                return { ok: true, reason: 'no_change' };
+            }
+
+            const content = this._normalizeContent(remote.content);
+            const applied = Config.processImport(content, true);
+            if (!applied) {
+                App.showToast('云端文件内容为空或格式无法识别，本地数据未改动', 'error');
+                return { ok: false, reason: 'unparseable' };
+            }
+            this._saveLocalSnapshot();
+            this._config.lastSha = remote.sha;
+            this._config.lastFetchTs = Date.now();
+            localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
+            App.showToast('拉取成功，数据已更新', 'success');
             return { ok: true };
         } catch (e) {
             const msg = this._friendlyError(e);
             App.showToast('拉取失败：' + msg, 'error');
             return { ok: false, reason: e.message };
         }
-    },
-
-    /**
-     * 实际 fetch 逻辑
-     * 
-     * 关键点：绝对不能手动加自定义 headers（如 Accept / If-None-Match），
-     * 否则会触发浏览器发 OPTIONS 预检请求，而 GitHub raw 域名对 OPTIONS 返回 403。
-     * 
-     * 策略：
-     * 1. 不带自定义 headers → 不会发 OPTIONS 预检 → 直接 GET → 能拿到数据
-     * 2. cache: 'no-cache' → 告诉浏览器每次都向服务器发条件请求（自动带 If-None-Match）
-     * 3. gh-proxy 失败 → fallback 到 raw URL
-     */
-    async _doFetch() {
-        const urlsToTry = [];
-        if (this._config.fetchUrl && this._config.fetchUrl !== this._config.rawUrl) {
-            urlsToTry.push(this._config.fetchUrl); // 加速 URL 优先
-        }
-        if (this._config.rawUrl) {
-            urlsToTry.push(this._config.rawUrl);    // raw URL fallback
-        }
-
-        let lastErr = null;
-        for (const url of urlsToTry) {
-            try {
-                // 不带任何自定义 headers！避免触发 OPTIONS 预检
-                // cache: 'no-cache' 让浏览器自动发 If-None-Match 条件请求
-                const resp = await fetch(url, { 
-                    mode: 'cors',
-                    cache: 'no-cache'
-                });
-
-                if (resp.status === 304) {
-                    return { changed: false, content: null };
-                }
-                if (!resp.ok) {
-                    lastErr = new Error(`HTTP ${resp.status}`);
-                    continue;
-                }
-
-                const etag = resp.headers.get('ETag');
-                if (etag) this._config.lastETag = etag;
-
-                const content = await resp.text();
-                // 空文件或无有效文件夹数据 → 视为未变更，交给调用方处理
-                if (!this._hasValidContent(content)) {
-                    return { changed: false, content: null };
-                }
-                return { changed: true, content };
-            } catch (e) {
-                lastErr = e;
-                console.warn('[CloudSync] fetch failed for', url, ':', e.message);
-            }
-        }
-        throw lastErr || new Error('所有 URL 均拉取失败');
     },
 
     // =====================================================
@@ -564,11 +500,16 @@ const CloudSync = {
             return { ok: false, reason: err.message };
         }
 
-        // 成功：当前数据 == 云端，刷新基准快照与同步时间（拉/上传共用同一基准）
+        // 成功：当前数据 == 云端，刷新基准快照、同步时间和云端 sha
+        // PUT 响应 JSON 格式：{ content: { sha, name, path, ... }, commit: { sha, ... } }
+        const putResp = await resp.json().catch(() => ({}));
+        const newSha = (putResp.content && putResp.content.sha) || sha || null;
         this._saveLocalSnapshot();
         this._setSyncedNow();
+        this._config.lastSha = newSha;
+        localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
         if (!silent) App.showToast('上传成功，云端已更新', 'success');
-        return { ok: true };
+        return { ok: true, sha: newSha };
     },
 
     /**
@@ -623,17 +564,15 @@ const CloudSync = {
     // =====================================================
 
     /**
-     * 手动同步入口（"立即拉取"按钮调用）：双向模式走双向同步，否则走原拉取
+     * 手动同步入口（"立即拉取"按钮调用）：
+     *   双向模式 → syncTwoWay（包含读 + 写）
+     *   单向模式 → fetchManual（只读）
+     * 两条链路统一走 Contents API + githubToken，拉取私有仓库都需要令牌。
      */
     async syncNow() {
-        if (this._config.twoWay) {
-            if (!this.canUpload()) {
-                App.showToast('双向同步需要 GitHub 存储源 + 令牌，本次仅执行拉取', 'info');
-                return this.fetchManual();
-            }
-            return this.syncTwoWay(false);
-        }
-        return this.fetchManual();
+        return this._config.twoWay
+            ? this.syncTwoWay(false)
+            : this.fetchManual();
     },
 
     /**
@@ -647,9 +586,13 @@ const CloudSync = {
      * @returns {Promise<{ok:boolean, action?:string, reason?:string}>}
      */
     async syncTwoWay(silent) {
-        if (!this._config.fetchUrl) {
+        if (!this._config.rawUrl) {
             if (!silent) App.showToast('请先配置云端 URL', 'error');
             return { ok: false, reason: 'no_url' };
+        }
+        if (!this._config.githubToken) {
+            if (!silent) App.showToast('双向同步需要填写 GitHub 令牌（需 repo 权限）', 'error');
+            return { ok: false, reason: 'no_token' };
         }
         const parsed = this._parseGithubRawUrl(this._config.rawUrl);
         if (!parsed) {
@@ -728,6 +671,8 @@ const CloudSync = {
                     return { ok: false, reason: 'remote_unparseable' };
                 }
                 this._saveLocalSnapshot();
+                this._config.lastSha = remote.sha;
+                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
                 this._setSyncedNow();
                 if (!silent) App.showToast('云端更新已应用到本地', 'success');
                 return { ok: true, action: 'pulled' };
@@ -747,6 +692,8 @@ const CloudSync = {
                     return { ok: false, reason: 'remote_unparseable' };
                 }
                 this._saveLocalSnapshot();
+                this._config.lastSha = remote.sha;
+                localStorage.setItem('cloud_sync_config', JSON.stringify(this._config));
                 this._setSyncedNow();
                 if (!silent) App.showToast('已与云端对齐', 'success');
                 return { ok: true, action: 'pulled' };
