@@ -467,7 +467,7 @@ const CloudSync = {
         }
 
         App.showToast('正在检查云端状态...', 'info');
-        const localContent = Config.serializeData();
+        const localRaw = Config.serializeData();
         let remote;
         try {
             remote = await this._getRemoteFile(parsed);
@@ -478,22 +478,27 @@ const CloudSync = {
 
         // 情况 1：远程无文件 → 创建
         if (!remote.exists) {
-            return this._doUpload(parsed, localContent, null);
+            return this._doUpload(parsed, localRaw, null);
         }
 
-        // 情况 2：内容一致 → 无需上传
-        if (remote.content === localContent) {
+        // 情况 2：内容一致（normalize 后） → 无需上传
+        const localNorm = this._normalizeContent(localRaw);
+        const remoteNorm = this._normalizeContent(remote.content);
+        if (remoteNorm === localNorm) {
+            this._saveLocalSnapshot();
+            this._setSyncedNow();
             App.showToast('云端已是最新，无需上传', 'info');
             return { ok: true, reason: 'up_to_date' };
         }
 
         // 情况 3/4：远程与本地不一致。用基准快照判断云端是否被其他设备改过
-        const baseline = (() => {
+        const baselineRaw = (() => {
             try { return localStorage.getItem('cloud_sync_last_local_snapshot'); }
             catch (e) { return null; }
         })();
+        const baseline = baselineRaw !== null ? this._normalizeContent(baselineRaw) : null;
         // 无基准（首次上传但远程已有文件）也视为"云端有未知内容"，走冲突确认更安全
-        const cloudChangedByOther = baseline ? (remote.content !== baseline) : true;
+        const cloudChangedByOther = baseline ? (remoteNorm !== baseline) : true;
 
         if (cloudChangedByOther) {
             const choice = await this._confirmConflict();
@@ -519,7 +524,7 @@ const CloudSync = {
             // choice === 'force' → 继续向下，带 sha 强制覆盖
         }
 
-        return this._doUpload(parsed, localContent, remote.sha);
+        return this._doUpload(parsed, localRaw, remote.sha);
     },
 
     /**
@@ -580,6 +585,17 @@ const CloudSync = {
      */
     _hasValidContent(txt) {
         return /^#+\s*\S/m.test(txt || '');
+    },
+
+    /**
+     * 规范化 txt 内容以便比较 / 存储：
+     *   \r\n → \n（Windows Git 提交常带 CRLF）
+     *   去掉末尾所有 \n（GitHub Contents API 返回的文本文件末尾通常带 \n，
+     *     但 Config.serializeToTxt 用 lines.join('\n') 不带末尾换行，
+     *     这种格式差异不该被视为"数据变了"）
+     */
+    _normalizeContent(txt) {
+        return String(txt || '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
     },
 
     /**
@@ -644,10 +660,24 @@ const CloudSync = {
         if (!silent) App.showToast('正在双向同步...', 'info');
         try {
             // 用 Contents API 读远程（自带 sha，上传时直接可用）
-            const remote = await this._getRemoteFile(parsed);
-            const local = Config.serializeData();
+            const remoteRaw = await this._getRemoteFile(parsed);
+            const localRaw = Config.serializeData();
+
+            // 统一 normalize 后再比较：
+            //  - Windows Git 提交可能带 \r\n（CRLF）
+            //  - GitHub 网页端编辑保存会在末尾自动加 \n
+            // 这两种格式差异都不应被视为"数据变了"
+            const local = this._normalizeContent(localRaw);
+            const remote = {
+                exists: remoteRaw.exists,
+                sha: remoteRaw.sha,
+                content: this._normalizeContent(remoteRaw.content)
+            };
             let baseline = null;
-            try { baseline = localStorage.getItem('cloud_sync_last_local_snapshot'); } catch (e) { /* ignore */ }
+            try {
+                const b = localStorage.getItem('cloud_sync_last_local_snapshot');
+                baseline = b !== null ? this._normalizeContent(b) : null;
+            } catch (e) { /* ignore */ }
 
             // 有效同步数据的判定：至少包含一个文件夹行（#开头）。
             // GitHub 网页端新建的空文件 content 为 ''，不能当作"云端版本"应用到本地
@@ -662,7 +692,7 @@ const CloudSync = {
                     if (!silent) App.showToast('本地与云端都没有有效数据', 'info');
                     return { ok: true, action: 'noop' };
                 }
-                const r = await this._doUpload(parsed, local, remote.exists ? remote.sha : null, silent);
+                const r = await this._doUpload(parsed, localRaw, remote.exists ? remote.sha : null, silent);
                 if (r.ok && !silent) {
                     App.showToast(remote.exists ? '云端文件为空，已上传本地数据' : '首次同步：本地数据已上传云端', 'success');
                 }
@@ -685,7 +715,7 @@ const CloudSync = {
 
             // —— 仅本地变 → 上传本地 ——
             if (localChanged && !remoteChanged) {
-                const r = await this._doUpload(parsed, local, remote.sha, silent);
+                const r = await this._doUpload(parsed, localRaw, remote.sha, silent);
                 if (r.ok && !silent) App.showToast('本地改动已上传云端', 'success');
                 return r.ok ? { ok: true, action: 'uploaded' } : r;
             }
