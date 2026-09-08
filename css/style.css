@@ -622,8 +622,9 @@ body.drag-locked .drag-handle {
     height: 20px;
 }
 
-/* 展开状态时竖线常显 */
-.tree-node-header.has-children.expanded::before {
+/* 选中状态时蓝线常显（蓝线 = 选中指示器，不再表示展开状态；
+   展开已有箭头旋转 + 文件夹图标开口作为反馈） */
+.tree-node-header.has-children.selected::before {
     height: 20px;
     background: #4a90d9;
 }
