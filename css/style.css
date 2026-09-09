@@ -622,10 +622,27 @@ body.drag-locked .drag-handle {
     height: 20px;
 }
 
-/* 选中状态时蓝线常显（蓝线 = 选中指示器，不再表示展开状态；
-   展开已有箭头旋转 + 文件夹图标开口作为反馈） */
-.tree-node-header.has-children.selected::before {
-    height: 20px;
+/* ==================== 选中蓝线 ====================
+   蓝线 = 选中指示器（不表示展开；展开已有箭头旋转 + 文件夹图标开口反馈）。
+   为与"层级缩进灰线"无缝衔接、不在行上下留空白：
+   · 子文件夹：复用那条连续的层级引导线（.tree-node::before，本就 top:0/bottom:0
+     贯穿整段），选中时该段变蓝，与上下灰线自然衔接；
+   · 根级文件夹：不在 .tree-children 内、无引导线，改用 header 左缘一条贯穿整行的蓝线。 */
+
+/* 子文件夹选中：隐藏 header 上那条 20px 短蓝线（避免与引导线重复/错位） */
+.tree-children .tree-node.selected > .tree-node-header::before {
+    height: 0;
+}
+/* 子文件夹选中：连续层级引导线该段变蓝（贯穿整行，与上下灰线衔接，无悬空空白） */
+.tree-children .tree-node.selected::before {
+    background: #4a90d9;
+}
+/* 根级文件夹选中（#folderTree 直接子节点，无引导线）：header 左缘蓝线贯穿整行 */
+#folderTree > .tree-node.selected > .tree-node-header::before {
+    top: 0;
+    bottom: 0;
+    transform: none;
+    height: auto;
     background: #4a90d9;
 }
 
