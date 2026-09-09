@@ -602,47 +602,50 @@ body.drag-locked .drag-handle {
     visibility: visible;
 }
 
-/* ==================== 悬停效果（灰色竖线 + 提示文案） ==================== */
-/* 灰色竖线 - 仅在 hover 时显示 */
-.tree-node-header.has-children::before {
+/* ==================== 文件夹行粗指示条（与层级细引导线同轴相连） ====================
+   每个文件夹行上有一条比细引导线粗的竖条，和细引导线构成"树形轨道"：
+   · 默认灰色（与细引导线同色系），每条粗条在轴向上与上下细引导线相连；
+   · 选中时该条变蓝，且其整棵子树内的细引导线同步变蓝，形成一条高亮路径。
+   几何：细引导线画在 .tree-node 上 left:8px，嵌套节点 padding-left:18px，
+   故嵌套 header 的粗条位于 header 左缘 -10px 处（=节点左缘 8px）；
+   根级节点无缩进，粗条位于 header 左缘 8px 处，与子级细引导线同轴。 */
+.tree-node-header::after {
     content: '';
     position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2px;
-    height: 0;
-    background: #bbb;
-    border-radius: 1px;
-    transition: height 0.2s ease;
-    pointer-events: none;
-}
-
-.tree-node-header.has-children:hover::before {
-    height: 20px;
-}
-
-/* ==================== 选中蓝线 ====================
-   蓝线 = 选中指示器（不表示展开；展开已有箭头旋转 + 文件夹图标开口反馈）。
-   为与"层级缩进灰线"无缝衔接、不在行上下留空白：
-   · 子文件夹：复用那条连续的层级引导线（.tree-node::before，本就 top:0/bottom:0
-     贯穿整段），选中时该段变蓝，与上下灰线自然衔接；
-   · 根级文件夹：不在 .tree-children 内、无引导线，改用 header 左缘一条贯穿整行的蓝线。 */
-
-/* 子文件夹选中：隐藏 header 上那条 20px 短蓝线（避免与引导线重复/错位） */
-.tree-children .tree-node.selected > .tree-node-header::before {
-    height: 0;
-}
-/* 子文件夹选中：连续层级引导线该段变蓝（贯穿整行，与上下灰线衔接，无悬空空白） */
-.tree-children .tree-node.selected::before {
-    background: #4a90d9;
-}
-/* 根级文件夹选中（#folderTree 直接子节点，无引导线）：header 左缘蓝线贯穿整行 */
-#folderTree > .tree-node.selected > .tree-node-header::before {
     top: 0;
     bottom: 0;
-    transform: none;
-    height: auto;
+    width: 3px;
+    border-radius: 2px;
+    background: #d5dbe2;
+    pointer-events: none;
+    transition: background 0.15s;
+}
+
+/* 嵌套文件夹：粗条退回 10px，落在节点 8px 引导线轴上 */
+.tree-children .tree-node > .tree-node-header::after {
+    left: -10px;
+}
+/* 根级文件夹：粗条在 header 左缘 8px，与子级引导线同轴；
+   拖拽手柄 ⋮⋮ 位于该轴附近，需置于粗条之上避免被遮挡 */
+#folderTree > .tree-node > .tree-node-header::after {
+    left: 8px;
+}
+.tree-node-drag {
+    position: relative;
+    z-index: 1;
+}
+
+/* 选中：当前文件夹的粗条变蓝 */
+.tree-node-header.selected::after {
+    background: #4a90d9;
+}
+/* 选中文件夹子树内的细引导线全部变蓝：
+   ① 其自身那条（嵌套文件夹的 ::before 贯穿自身整段）
+   ② 所有后代文件夹的引导线
+   ③ 移动端内联收藏页的引导线 */
+.tree-node.selected::before,
+.tree-node.selected .tree-node::before,
+.tree-node.selected .tree-bookmarks::before {
     background: #4a90d9;
 }
 
