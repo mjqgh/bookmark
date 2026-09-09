@@ -414,34 +414,40 @@ body.resizing .resizer {
 .folder-tree {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 8px 10px;
     min-height: 0;
 }
 
 .tree-node {
     user-select: none;
+    position: relative;  /* 让引导线等定位元素以节点为参照 */
+    margin-bottom: 4px;  /* 卡片之间的间距；引导线挂在 .tree-children 上，可贯穿间隙 */
 }
 
 .tree-node-header {
     display: flex;
     align-items: center;
-    padding: 4px 12px 4px 0;
+    padding: 9px 12px 9px 26px;  /* 左侧 26px 留给绝对定位的拖拽手柄 ⋮⋮ */
     cursor: pointer;
     position: relative;
     transition: background 0.15s;
-    border-radius: 0 4px 4px 0;
-    margin-right: 8px;
+    border-radius: 8px;
+    background: #f5f5f5;  /* 原型：未选中文件夹统一浅灰卡片 */
     /* touch-action 留给浏览器默认值，手指起点在文件夹行上也能滚动；
        拖拽手柄 .tree-node-drag 单独设了 touch-action:none 防止拖拽时被手势干扰 */
 }
 
 .tree-node-header:hover {
-    background: #f0f4f8;
+    background: #eceef1;
 }
 
 .tree-node-header.selected {
-    background: #e8f0fe;
+    background: #d3eaf8;  /* 原型：选中文件夹浅蓝卡片 */
     color: #1a73e8;
+}
+
+.tree-node-header.selected:hover {
+    background: #c7e3f5;
 }
 
 /* 选中文件夹下所有子孙文件夹和收藏页显示浅色底色，
@@ -481,8 +487,9 @@ body.resizing .resizer {
     cursor: pointer;
     border-radius: 4px;
     transition: transform 0.2s;
-    /* 与 meta 文案的间距 = header 右内边距，保证「文案-图标-右边缘」视觉对称 */
-    margin-left: 12px;
+    /* 移到行最右边 */
+    order: 99;
+    margin-left: auto;
 }
 
 .tree-toggle:hover {
@@ -490,32 +497,45 @@ body.resizing .resizer {
     background: rgba(74, 144, 217, 0.08);
 }
 
-/* 文件夹拖拽手柄（与 .tree-toggle 同一 18px 位置，桌面端+移动端均显示） */
+/* 文件夹拖拽手柄：绝对定位固定在卡片左侧，默认隐藏，hover 行时才显现；
+   不参与文档流，文字位置永不因手柄显隐而跳动 */
 .tree-node-drag {
-    width: 18px;
+    width: 24px;
     height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
-    color: #bbb;
+    color: #999;
     flex-shrink: 0;
     cursor: grab;
     user-select: none;
     line-height: 1;
     touch-action: none;
+    visibility: hidden;    /* 默认隐藏，hover 卡片时出现 */
+    transition: visibility 0.15s, color 0.15s;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
 }
 
 .tree-node-drag:active {
     cursor: grabbing;
 }
 
+/* 仅 hover 文件夹行时显示手柄（选中态不再常驻显示，与原型一致） */
+.tree-node-header:hover .tree-node-drag {
+    visibility: visible;
+}
+
 .tree-toggle.expanded {
     transform: rotate(90deg);
 }
 
-/* 展开状态：箭头颜色变为选中文案同款蓝色，颜色上也提供视觉反馈 */
-.tree-node-header.expanded > .tree-toggle {
+/* 选中状态：箭头颜色变为选中文案同款蓝色（未选中的展开文件夹箭头保持灰色，与原型一致） */
+.tree-node-header.selected > .tree-toggle {
     color: #1a73e8;
 }
 
@@ -527,8 +547,11 @@ body.resizing .resizer {
     visibility: hidden;
 }
 
-/* 拖拽锁：锁定时隐藏所有拖拽手柄（树文件夹 ⋮⋮ / 内联收藏 / 右侧收藏列表） */
-body.drag-locked .tree-node-drag,
+/* 拖拽锁：锁定时隐藏所有拖拽手柄（树文件夹 ⋮⋮ / 内联收藏 / 右侧收藏列表）
+   注意：文件夹手柄的选择器必须写成 body.drag-locked .tree-node-header .tree-node-drag，
+   优先级 (0,3,1) 才能压过 hover 显示规则 .tree-node-header:hover .tree-node-drag (0,3,0)，
+   否则锁定状态下鼠标悬停仍会显手柄 */
+body.drag-locked .tree-node-header .tree-node-drag,
 body.drag-locked .tree-bookmark-drag,
 body.drag-locked .drag-handle {
     visibility: hidden;
@@ -602,51 +625,29 @@ body.drag-locked .drag-handle {
     visibility: visible;
 }
 
-/* ==================== 文件夹行粗指示条（与层级细引导线同轴相连） ====================
-   每个文件夹行上有一条比细引导线粗的竖条，和细引导线构成"树形轨道"：
-   · 默认灰色（与细引导线同色系），每条粗条在轴向上与上下细引导线相连；
-   · 选中时该条变蓝，且其整棵子树内的细引导线同步变蓝，形成一条高亮路径。
-   几何：细引导线画在 .tree-node 上 left:8px，嵌套节点 padding-left:18px，
-   故嵌套 header 的粗条位于 header 左缘 -10px 处（=节点左缘 8px）；
-   根级节点无缩进，粗条位于 header 左缘 8px 处，与子级细引导线同轴。 */
-.tree-node-header::after {
+/* ==================== 左侧指示条 ====================
+   · 每个 .tree-node-header 卡片左边有一条短竖条（仅 header 行高）：
+     默认灰色，选中文件夹变蓝
+   · 展开的文件夹通过 .tree-children / .tree-bookmarks 上的 1px 细引导线
+     贯穿其子级区域：默认灰色，该文件夹选中时变蓝
+   · 短条与引导线 x 坐标一致（都在卡片左边缘 2px 处），视觉上首尾相接 */
+
+/* 短竖条：每个 header 卡片左边，默认灰色 */
+.tree-node-header::before {
     content: '';
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 3px;
-    border-radius: 2px;
-    background: #d5dbe2;
+    left: 0;
+    width: 4px;
+    background: #d0d0d0;
     pointer-events: none;
-    transition: background 0.15s;
+    border-radius: 4px 0 0 4px;
 }
 
-/* 嵌套文件夹：粗条退回 10px，落在节点 8px 引导线轴上 */
-.tree-children .tree-node > .tree-node-header::after {
-    left: -10px;
-}
-/* 根级文件夹：粗条在 header 左缘 8px，与子级引导线同轴；
-   拖拽手柄 ⋮⋮ 位于该轴附近，需置于粗条之上避免被遮挡 */
-#folderTree > .tree-node > .tree-node-header::after {
-    left: 8px;
-}
-.tree-node-drag {
-    position: relative;
-    z-index: 1;
-}
-
-/* 选中：当前文件夹的粗条变蓝 */
-.tree-node-header.selected::after {
-    background: #4a90d9;
-}
-/* 选中文件夹子树内的细引导线全部变蓝：
-   ① 其自身那条（嵌套文件夹的 ::before 贯穿自身整段）
-   ② 所有后代文件夹的引导线
-   ③ 移动端内联收藏页的引导线 */
-.tree-node.selected::before,
-.tree-node.selected .tree-node::before,
-.tree-node.selected .tree-bookmarks::before {
-    background: #4a90d9;
+/* 短竖条：选中的 header 变蓝 */
+.tree-node-header.selected::before {
+    background: #1a73e8;
 }
 
 /* 灰色提示文案 - 浮层显示 */
@@ -686,27 +687,33 @@ body.drag-locked .drag-handle {
 .tree-children {
     display: none;
     overflow: hidden;
+    position: relative;  /* 引导线 ::before 的定位参照 */
 }
 
 .tree-children.expanded {
     display: block;
 }
 
-.tree-children .tree-node {
-    position: relative;
-    padding-left: 18px;
-}
-
-/* 层级缩进参考线：每级子级左侧一条淡灰细线，不增加颜色即可看清嵌套结构 */
-.tree-children .tree-node::before {
+/* 展开文件夹的 1px 细引导线：从父文件夹短竖条中心（left:2px）向下贯穿整个子级区域；
+   .tree-children 仅在展开时显示，折叠态自动无线 */
+.tree-children::before {
     content: '';
     position: absolute;
-    left: 8px;
+    left: 2px;
     top: 0;
     bottom: 0;
     width: 1px;
     background: #e2e6ec;
     pointer-events: none;
+}
+
+/* 选中文件夹的引导线变蓝，与蓝色短竖条相接 */
+.tree-node.selected > .tree-children::before {
+    background: #1a73e8;
+}
+
+.tree-children .tree-node {
+    padding-left: 24px;
 }
 
 /* ==================== 内联收藏项（移动端显示，桌面隐藏） ==================== */
@@ -715,19 +722,15 @@ body.drag-locked .drag-handle {
     display: none;
     flex-direction: column;
     padding: 2px 0 8px;
-}
-
-/* 内联收藏项布局：精确镜像 .tree-node-header 的 toggle(18) + folder-icon(14,mr6) + label 结构 */
-.tree-bookmarks {
     position: relative;
 }
 
-/* 层级缩进参考线（收藏页版）：与 .tree-children .tree-node::before 完全对齐，
-   让"只有收藏页的文件夹"展开后也显示同款灰线，嵌套视觉一致 */
+/* 内联收藏页引导线：与 .tree-children::before 对齐（卡片左边缘 2px 处），
+   让"只有收藏页的文件夹"展开后也显示同款引导线，与文件夹短竖条首尾相接 */
 .tree-bookmarks::before {
     content: '';
     position: absolute;
-    left: 8px;
+    left: 2px;
     top: 0;
     bottom: 0;
     width: 1px;
@@ -735,13 +738,19 @@ body.drag-locked .drag-handle {
     pointer-events: none;
 }
 
+/* 选中文件夹的收藏页引导线同步变蓝 */
+.tree-node.selected > .tree-bookmarks::before {
+    background: #1a73e8;
+}
+
 .tree-bookmark-item {
     display: flex;
     align-items: center;
     padding: 4px 12px 4px 0;
-    margin-right: 8px;
     cursor: pointer;
     transition: background 0.12s;
+    border-radius: 8px;
+    margin-bottom: 2px;
 }
 .tree-bookmark-item:hover {
     background: #f0f4f8;
@@ -898,12 +907,13 @@ body.drag-locked .drag-handle {
 /* ==================== 文件夹树拖拽样式 ==================== */
 .tree-node.tree-sortable-ghost {
     opacity: 0.4;
-    background: #e8f0fe;
+    background: #d3eaf8;
+    border-radius: 8px;
 }
 
 .tree-node-header.tree-sortable-chosen {
     cursor: grabbing !important;
-    background: #f0f4f8;
+    background: #d3eaf8;
 }
 
 .tree-node.tree-sortable-drag {
@@ -1881,7 +1891,7 @@ body.drag-locked .drag-handle {
         padding: 6px 8px 20px;
     }
     .tree-node-header {
-        padding: 10px 10px;
+        padding: 10px 10px 10px 28px;  /* 左侧留给绝对定位的 ⋮⋮ 手柄 */
     }
     .tree-label {
         font-size: 15px;
