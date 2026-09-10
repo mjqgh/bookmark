@@ -684,7 +684,9 @@ const Tree = {
             const bookmarkList = document.createElement('div');
             bookmarkList.className = 'tree-bookmarks';
             bookmarkList.dataset.parentId = folder.id;
-            bookmarkList.style.paddingLeft = '18px';
+            // 缩进统一由 CSS .tree-bookmarks 的 padding-left 控制（=24px，
+            // 与 .tree-children .tree-node 的 padding-left 一致），
+            // 保证内联收藏页卡片与同级子文件夹卡片左缘对齐
 
             const order = (this.data.folderOrder && this.data.folderOrder[folder.id]) || [];
             let bookmarksInFolder = this.data.bookmarks.filter(b => b.folderId === folder.id);

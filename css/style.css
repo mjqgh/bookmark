@@ -715,12 +715,13 @@ body.drag-locked .drag-handle {
 .tree-bookmarks {
     display: none;
     flex-direction: column;
-    padding: 2px 0 8px;
+    padding: 2px 0 8px 24px;  /* 左 24px：与 .tree-children .tree-node 的缩进一致，收藏页卡片与同级子文件夹卡片对齐 */
     position: relative;
 }
 
-/* 内联收藏页引导线：与 .tree-children::before 对齐（卡片左边缘 2px 处），
-   让"只有收藏页的文件夹"展开后也显示同款引导线，与文件夹短竖条首尾相接 */
+/* 内联收藏页引导线：定位在容器左缘 2px（= 父文件夹短竖条中心），与 .tree-children::before
+   完全重合；item 卡片在容器 padding-left:24px 之后，引导线落在卡片左侧空白区，
+   与文件夹短竖条首尾相接 */
 .tree-bookmarks::before {
     content: '';
     position: absolute;
@@ -740,7 +741,7 @@ body.drag-locked .drag-handle {
 .tree-bookmark-item {
     display: flex;
     align-items: center;
-    padding: 4px 12px 4px 0;
+    padding: 9px 12px 9px 8px;  /* 左 8px 与 .tree-node-header 一致，卡片内手柄/图标与文件夹行对齐 */
     cursor: pointer;
     transition: background 0.12s;
     border-radius: 8px;
@@ -752,19 +753,25 @@ body.drag-locked .drag-handle {
 .tree-bookmark-item:active {
     background: #e8eef5;
 }
+/* 收藏页拖拽手柄：尺寸/边距与文件夹手柄 .tree-node-drag 完全一致，
+   保证卡片左缘对齐时，手柄与文件图标也和文件夹行在同一列 */
 .tree-bookmark-drag {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 26px;
+    margin-right: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
-    color: #bbb;
+    font-size: 13px;
+    color: #b3b3b3;
     flex-shrink: 0;
     cursor: grab;
     user-select: none;
     line-height: 1;
     touch-action: none;  /* 防止移动端浏览器默认手势干扰拖拽 */
+}
+.tree-bookmark-drag:hover {
+    color: #666;
 }
 .tree-bookmark-drag:active {
     cursor: grabbing;
@@ -1921,9 +1928,9 @@ body.drag-locked .drag-handle {
         opacity: 1 !important;
         visibility: visible !important;
     }
-    /* 移动端略加大 item 高度，便于手指点击；与文件夹行的 padding:10px 10px 完全一致 */
+    /* 移动端略加大 item 高度，便于手指点击；左 padding 8px 与文件夹行 .tree-node-header 一致 */
     .tree-bookmark-item {
-        padding: 10px 10px 10px 10px !important;
+        padding: 10px 10px 10px 8px !important;
     }
     .tree-bookmark-title {
         font-size: 15px;
