@@ -427,7 +427,7 @@ body.resizing .resizer {
 .tree-node-header {
     display: flex;
     align-items: center;
-    padding: 9px 12px 9px 26px;  /* 左侧 26px 留给绝对定位的拖拽手柄 ⋮⋮ */
+    padding: 9px 12px 9px 8px;  /* 左 8px：让出 4px 粗条 + 4px 间隙；手柄在文档流内自带宽度 */
     cursor: pointer;
     position: relative;
     transition: background 0.15s;
@@ -497,37 +497,33 @@ body.resizing .resizer {
     background: rgba(74, 144, 217, 0.08);
 }
 
-/* 文件夹拖拽手柄：绝对定位固定在卡片左侧，默认隐藏，hover 行时才显现；
-   不参与文档流，文字位置永不因手柄显隐而跳动 */
+/* 文件夹拖拽手柄：文档流内、header 的第一个子元素，天然位于「左侧粗条(::before)」与
+   「文件夹图标」之间；解锁后常驻显示（不依赖 hover/选中），锁定时由 body.drag-locked 隐藏。
+   visibility:hidden 仍保留占位，锁定/解锁切换不会引起文字位移 */
 .tree-node-drag {
-    width: 24px;
-    height: 18px;
+    width: 22px;
+    height: 26px;
+    margin-right: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
-    color: #999;
+    font-size: 13px;
+    color: #b3b3b3;
     flex-shrink: 0;
     cursor: grab;
     user-select: none;
     line-height: 1;
     touch-action: none;
-    visibility: hidden;    /* 默认隐藏，hover 卡片时出现 */
-    transition: visibility 0.15s, color 0.15s;
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1;
+    visibility: visible;   /* 解锁态常驻显示；锁定态见 body.drag-locked 规则 */
+    transition: color 0.15s;
+}
+
+.tree-node-drag:hover {
+    color: #666;
 }
 
 .tree-node-drag:active {
     cursor: grabbing;
-}
-
-/* 仅 hover 文件夹行时显示手柄（选中态不再常驻显示，与原型一致） */
-.tree-node-header:hover .tree-node-drag {
-    visibility: visible;
 }
 
 .tree-toggle.expanded {
@@ -548,9 +544,7 @@ body.resizing .resizer {
 }
 
 /* 拖拽锁：锁定时隐藏所有拖拽手柄（树文件夹 ⋮⋮ / 内联收藏 / 右侧收藏列表）
-   注意：文件夹手柄的选择器必须写成 body.drag-locked .tree-node-header .tree-node-drag，
-   优先级 (0,3,1) 才能压过 hover 显示规则 .tree-node-header:hover .tree-node-drag (0,3,0)，
-   否则锁定状态下鼠标悬停仍会显手柄 */
+   手柄在文档流内，visibility:hidden 仍占位，锁定/解锁不会引起文字位移 */
 body.drag-locked .tree-node-header .tree-node-drag,
 body.drag-locked .tree-bookmark-drag,
 body.drag-locked .drag-handle {
@@ -1891,7 +1885,7 @@ body.drag-locked .drag-handle {
         padding: 6px 8px 20px;
     }
     .tree-node-header {
-        padding: 10px 10px 10px 28px;  /* 左侧留给绝对定位的 ⋮⋮ 手柄 */
+        padding: 10px 10px 10px 8px;  /* 手柄在文档流内，左内边距只需让出 4px 粗条 */
     }
     .tree-label {
         font-size: 15px;
