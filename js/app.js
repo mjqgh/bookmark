@@ -44,15 +44,15 @@ const App = {
             importSection: '导入',
             importFile: '从本地文件导入（支持 txt / html）',
             cloudSyncTitle: '云端自动同步',
-            cloudSyncEnabled: '启用自动拉取',
-            cloudSyncTwoWay: '启用自动双向同步',
+            cloudSyncEnabled: '启用拉取',
+            cloudSyncTwoWay: '启用双向同步',
             cloudProvider: '存储源',
             cloudProviderCustom: '其他（自定义 URL）',
             cloudRawUrl: 'txt 文件 URL',
             cloudInterval: '拉取间隔',
             cloudIntervalManual: '仅手动拉取',
             cloudTestFetch: '立即拉取',
-            cloudUpload: '上传到云端',
+            cloudUpload: '立即上传',
             cloudGithubToken: 'GitHub 令牌',
             cloudTokenHint: '需勾选 repo 权限的个人访问令牌。',
             cloudSave: '保存配置',
@@ -62,7 +62,7 @@ const App = {
             cloudHint: '首次使用：在 GitHub 新建仓库 + 上传 txt → 打开 raw 文件 → 复制 URL 粘贴到上面。数据完全由你自己掌握，我们不会存储你的任何数据。',
             exportSection: '导出',
             exportTxt: '导出为 txt',
-            exportHtml: '导出为 html（浏览器书签格式）',
+            exportHtml: '导出为 html (浏览器书签格式)',
             formatSection: '文件格式说明',
             titleLabel: '标题',
             titlePlaceholder: '输入收藏标题',
@@ -140,15 +140,15 @@ const App = {
             importSection: 'Import',
             importFile: 'Import from File (txt / html)',
             cloudSyncTitle: 'Cloud Auto Sync',
-            cloudSyncEnabled: 'Enable auto-fetch',
-            cloudSyncTwoWay: 'Enable auto two-way sync',
+            cloudSyncEnabled: 'Enable fetch',
+            cloudSyncTwoWay: 'Enable two-way sync',
             cloudProvider: 'Provider',
             cloudProviderCustom: 'Other (Custom URL)',
             cloudRawUrl: 'txt File URL',
             cloudInterval: 'Fetch Interval',
             cloudIntervalManual: 'Manual only',
             cloudTestFetch: 'Fetch Now',
-            cloudUpload: 'Upload to Cloud',
+            cloudUpload: 'Upload Now',
             cloudGithubToken: 'GitHub Token',
             cloudTokenHint: 'A personal access token with repo scope is required.',
             cloudSave: 'Save Config',
@@ -568,7 +568,7 @@ const App = {
             }
             const newCfg = CloudSync.saveConfig(form);
             statusEl.textContent = CloudSync.formatLastFetch();
-            App.showToast('配置已保存' + (newCfg.twoWay ? '，启用自动双向同步' : (newCfg.enabled ? '，启用自动拉取' : '')), 'success');
+            App.showToast('配置已保存' + (newCfg.twoWay ? '，启用双向同步' : (newCfg.enabled ? '，启用拉取' : '')), 'success');
         });
 
         btnTest.addEventListener('click', async () => {
@@ -585,7 +585,7 @@ const App = {
             }
         });
 
-        // 上传到云端（仅 GitHub + 令牌；冲突时由 CloudSync 弹窗二选一）
+        // 立即上传（仅 GitHub + 令牌；冲突时由 CloudSync 弹窗二选一）
         btnUpload.addEventListener('click', async () => {
             const form = collectForm();
             if (form.provider !== 'github') {

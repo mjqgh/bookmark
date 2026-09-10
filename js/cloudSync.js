@@ -966,7 +966,7 @@ const CloudSync = {
         if (msg.includes('HTTP 422')) return '请求内容有误（422）—— 通常是分支名或文件路径不合法';
         // —— 拉取（raw / gh-proxy / 其他源）——
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('TypeError') || msg.includes('ORB')) {
-            return '网络错误或 CORS/ORB 拦截。GitHub URL 请选"GitHub (gh-proxy 加速)"存储源，raw.githubusercontent.com 不支持跨域；gh-proxy 和国内七牛/OSS 均自带 CORS' ;
+            return '网络错误或 CORS/ORB 拦截。GitHub URL 请选"GitHub"存储源，raw.githubusercontent.com 不支持跨域；gh-proxy 和国内七牛/OSS 均自带 CORS' ;
         }
         if (msg.includes('HTTP 400')) return '请求错误（400）—— 可能是 gh-proxy 加速失败，稍等重试或检查 URL 格式';
         if (msg.includes('文件夹')) return msg; // _getRemoteFile 的目录提示，原样返回
