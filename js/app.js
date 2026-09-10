@@ -642,7 +642,7 @@ const App = {
         const eng = this.getSearchEngine(engineId);
         if (alsoSetDefault) this.setDefaultEngineId(eng.id);
         const url = eng.url.replace('{q}', encodeURIComponent(q));
-        window.open(url, '_blank', 'noopener');
+        window.open(url, '_blank', 'noopener,noreferrer');
     },
 
     /**

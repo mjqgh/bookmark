@@ -209,15 +209,15 @@ const Bookmarks = {
                 this.copyToClipboard(bookmark.url);
                 break;
             case 'open-new-tab':
-                window.open(bookmark.url, '_blank');
+                window.open(bookmark.url, '_blank', 'noopener,noreferrer');
                 break;
             case 'open-new-window':
-                window.open(bookmark.url, '', 'width=800,height=600');
+                window.open(bookmark.url, '', 'noopener,noreferrer,width=800,height=600');
                 break;
             case 'open-inprivate-window':
                 // 浏览器安全限制下无法直接打开 InPrivate 窗口
                 // 改为打开新窗口并提示用户使用 Ctrl+Shift+N
-                window.open(bookmark.url, '_blank', 'width=800,height=600');
+                window.open(bookmark.url, '_blank', 'noopener,noreferrer,width=800,height=600');
                 App.showToast('已在新窗口中打开，如需 InPrivate 模式请使用 Ctrl+Shift+N', 'info');
                 break;
             case 'delete':
@@ -601,7 +601,7 @@ const Bookmarks = {
                 e.stopPropagation();
                 return;
             }
-            window.open(bookmark.url, '_blank');
+            window.open(bookmark.url, '_blank', 'noopener,noreferrer');
         });
         
         return item;

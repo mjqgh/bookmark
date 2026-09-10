@@ -819,7 +819,7 @@ const Tree = {
                         return;
                     }
                     e.stopPropagation();
-                    window.open(bookmark.url, '_blank');
+                    window.open(bookmark.url, '_blank', 'noopener,noreferrer');
                 });
 
                 // 长按：弹出右键菜单（移动端操作入口）
