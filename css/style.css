@@ -686,6 +686,8 @@ body.drag-locked .drag-handle {
 
 .tree-children.expanded {
     display: block;
+    padding-top: 4px;  /* 父文件夹卡片与第一个子文件夹之间的间隙，与兄弟卡片间 4px 间距一致；
+                          用 padding 而非 margin，引导线 ::before 仍从容器顶缘开始，可穿过间隙与父短竖条相接 */
 }
 
 /* 展开文件夹的 1px 细引导线：从父文件夹短竖条中心（left:2px）向下贯穿整个子级区域；
