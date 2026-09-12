@@ -123,6 +123,32 @@ const Tree = {
                 this.hideTreeContextMenu();
             }
         });
+
+        // 全局：双击文件夹行 = 展开/折叠（桌面端鼠标习惯，行尾箭头点击方式保留）
+        // 必须用 document 委托，不能直接绑在 header 上：第一次单击会走 selectFolder → render()
+        // 重建整棵树，两次点击之间 header 元素已被替换，绑在元素上的 dblclick 会丢失。
+        // 浏览器的双击判定基于点击位置/时间而非 DOM 节点身份，重建后同位置的新 header 仍会收到 dblclick。
+        document.addEventListener('dblclick', (e) => {
+            // 仅鼠标等精细指针设备启用；触屏设备双击语义不明确，展开仍走行尾箭头，避免误触
+            if (!window.matchMedia('(pointer: fine)').matches) return;
+            // 拖拽刚结束时拦截，与单击/箭头处理一致
+            if (this.justDragged) return;
+
+            const header = e.target.closest('.tree-node-header');
+            if (!header) return;
+            // 双击落在行尾箭头上时不处理：箭头自己的两次 click 已完成一次展开+折叠，
+            // 这里再切换一次会变成多余的状态翻转
+            if (e.target.closest('.tree-toggle')) return;
+            // 桌面端只有含子文件夹的节点展开才有可见内容（仅收藏页的节点不显示箭头）
+            if (!header.classList.contains('has-sub')) return;
+
+            const folderId = header.closest('.tree-node')?.dataset.folderId;
+            if (!folderId) return;
+
+            // 与箭头点击完全一致的行为：切换展开 + 同步选中
+            this.toggleExpand(folderId);
+            this.selectFolder(folderId);
+        });
     },
     
     /**
