@@ -1895,6 +1895,9 @@ body.drag-locked .drag-handle {
     }
     .tree-node-header {
         padding: 10px 10px 10px 8px;  /* 手柄在文档流内，左内边距只需让出 4px 粗条 */
+        /* 允许双击触发：禁用浏览器 double-tap-to-zoom 手势，让我们的双击展开逻辑生效；
+           仍保留 pan-x/pan-y 滚动能力，不影响手指起点在文件夹行上的滚动 */
+        touch-action: manipulation;
     }
     .tree-label {
         font-size: 15px;
