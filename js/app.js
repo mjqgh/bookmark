@@ -41,6 +41,10 @@ const App = {
             addBookmark: '添加收藏页',
             addFolder: '添加收藏夹',
             configTitle: '配置',
+            tabImportExport: '导入/导出',
+            tabCloudSync: '云端同步',
+            tabLocalSync: '本地同步',
+            tabOther: '其他',
             importSection: '导入',
             importFile: '从本地文件导入（支持 txt / html）',
             cloudSyncTitle: '云端自动同步',
@@ -137,6 +141,10 @@ const App = {
             addBookmark: 'Add Bookmark',
             addFolder: 'Add Folder',
             configTitle: 'Configuration',
+            tabImportExport: 'Import/Export',
+            tabCloudSync: 'Cloud Sync',
+            tabLocalSync: 'Local Sync',
+            tabOther: 'Other',
             importSection: 'Import',
             importFile: 'Import from File (txt / html)',
             cloudSyncTitle: 'Cloud Auto Sync',
@@ -280,6 +288,12 @@ const App = {
         CloudSync.init();
         this.initCloudSyncUI();
         this.updateSyncBtnVisibility();
+
+        // 本地同步（异步：需要等 IndexedDB 就绪）
+        LocalSync.init();
+
+        // 配置弹窗：标签页切换 + 本地同步 UI 绑定
+        this.initConfigTabs();
         
         // 窗口宽度跨越 768px 阈值时，保持用户上次的展开状态，
         // 只确保被选中的文件夹本身及父路径可见（不至于切换视口后找不到当前选中项）
@@ -534,13 +548,23 @@ const App = {
 
         providerSel.addEventListener('change', syncProviderUI);
 
-        // 二选一互斥：勾选一个自动取消另一个
-        enabledCb.addEventListener('change', () => {
+        // 二选一互斥：勾选一个自动取消另一个；同时启用云端 → 自动关闭本地同步
+        const onCloudSyncCheck = () => {
             if (enabledCb.checked) twoWayCb.checked = false;
-        });
-        twoWayCb.addEventListener('change', () => {
             if (twoWayCb.checked) enabledCb.checked = false;
-        });
+            // 云端启用 → 本地同步自动关闭
+            if (enabledCb.checked || twoWayCb.checked) {
+                const localCfg = LocalSync.getConfig();
+                if (localCfg.enabled) {
+                    LocalSync._saveConfig({ enabled: false });
+                    const lsCb = document.getElementById('localSyncEnabled');
+                    if (lsCb) lsCb.checked = false;
+                    App.showToast('已启用云端同步，本地同步已自动关闭', 'info');
+                }
+            }
+        };
+        enabledCb.addEventListener('change', onCloudSyncCheck);
+        twoWayCb.addEventListener('change', onCloudSyncCheck);
 
         // 事件绑定
         btnSave.addEventListener('click', () => {
@@ -624,6 +648,140 @@ const App = {
 
         // 初始填充一次（首次打开配置前就有配置的情况）
         fillForm();
+    },
+
+    /**
+     * 配置弹窗标签页切换 + 本地同步功能初始化
+     */
+    initConfigTabs() {
+        const tabs = document.querySelectorAll('.config-tab');
+        const panes = document.querySelectorAll('.config-tab-pane');
+
+        // 记录上次选中的 tab（持久化到 localStorage）
+        const LAST_TAB_KEY = 'config_last_tab';
+
+        const switchTab = (name) => {
+            tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+            panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+            localStorage.setItem(LAST_TAB_KEY, name);
+        };
+
+        // tab 点击切换
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                switchTab(tab.dataset.tab);
+            });
+        });
+
+        // 恢复上次 tab（默认"导入/导出"）
+        const savedTab = localStorage.getItem(LAST_TAB_KEY) || 'import-export';
+        switchTab(savedTab);
+
+        // ===== 本地同步（对接 LocalSync 模块）=====
+        const localSyncEnabled = document.getElementById('localSyncEnabled');
+        const btnLocalSyncFile = document.getElementById('btnLocalSyncFile');
+        const localSyncStatus = document.getElementById('localSyncStatus');
+        const localSyncLast = document.getElementById('localSyncLast');
+        const localSyncInterval = document.getElementById('localSyncInterval');
+        const btnLocalSyncSave = document.getElementById('localSyncSave');
+        const btnLocalSyncForceWrite = document.getElementById('localSyncForceWrite');
+        const btnLocalSyncPull = document.getElementById('localSyncPull');
+
+        // 浏览器不支持 File System Access API → 禁用按钮
+        const supported = LocalSync.isSupported();
+        if (!supported) {
+            btnLocalSyncFile.disabled = true;
+            btnLocalSyncFile.textContent = '当前浏览器不支持本地同步（需 Chrome/Edge）';
+            btnLocalSyncSave.disabled = true;
+            btnLocalSyncForceWrite.disabled = true;
+            btnLocalSyncPull.disabled = true;
+        }
+
+        // 更新本地同步 tab 的所有状态显示
+        const updateLocalSyncStatus = () => {
+            const cfg = LocalSync.getConfig();
+            const handle = LocalSync.getHandle();
+            localSyncEnabled.checked = !!cfg.enabled;
+            localSyncInterval.value = String(cfg.intervalMin ?? 15);
+            if (handle) {
+                const perm = LocalSync.hasPermission() ? '（已授权）' : '（需重新授权）';
+                localSyncStatus.textContent = `已绑定：${handle.name} ${perm}`;
+            } else if (cfg.fileName) {
+                localSyncStatus.textContent = `上次绑定：${cfg.fileName}（请重新选择文件）`;
+            } else {
+                localSyncStatus.textContent = '未选择文件';
+            }
+            localSyncLast.textContent = '上次同步：' + LocalSync.formatLastSync();
+            // 启用 checkbox 需要已有文件绑定
+            localSyncEnabled.disabled = !handle;
+        };
+
+        // 勾选启用 → 互斥
+        localSyncEnabled.addEventListener('change', () => {
+            if (!handle) {
+                localSyncEnabled.checked = false;
+                App.showToast('请先选择本地同步文件', 'error');
+                return;
+            }
+            if (localSyncEnabled.checked) {
+                // 云端自动关闭
+                const cloudCfg = CloudSync.getConfig();
+                if (cloudCfg.enabled || cloudCfg.twoWay) {
+                    CloudSync.saveConfig({ enabled: false, twoWay: false });
+                    const cbE = document.getElementById('cloudSyncEnabled');
+                    const cbT = document.getElementById('cloudSyncTwoWay');
+                    if (cbE) cbE.checked = false;
+                    if (cbT) cbT.checked = false;
+                    App.showToast('已启用本地同步，云端同步已自动关闭', 'info');
+                }
+            }
+            LocalSync._saveConfig({ enabled: localSyncEnabled.checked });
+        });
+
+        // 选文件（showOpenFilePicker）
+        btnLocalSyncFile.addEventListener('click', async () => {
+            if (!supported) return;
+            const handle = await LocalSync.pickFile();
+            if (handle) {
+                updateLocalSyncStatus();
+                // 选完文件自动启用定时（如果之前没启用）
+                if (!LocalSync.getConfig().enabled) {
+                    LocalSync._saveConfig({ enabled: true });
+                    updateLocalSyncStatus();
+                }
+            }
+        });
+
+        // 保存配置
+        btnLocalSyncSave.addEventListener('click', () => {
+            LocalSync._saveConfig({
+                intervalMin: parseInt(localSyncInterval.value, 10) || 15
+            });
+            App.showToast('本地同步配置已保存', 'success');
+        });
+
+        // 立即修改（本地 → 文件）
+        btnLocalSyncForceWrite.addEventListener('click', async () => {
+            if (!LocalSync.getHandle()) {
+                App.showToast('请先选择本地同步文件', 'error');
+                return;
+            }
+            await LocalSync.syncPush(false);
+            updateLocalSyncStatus();
+        });
+
+        // 立即拉取（文件 → 本地）
+        btnLocalSyncPull.addEventListener('click', async () => {
+            if (!LocalSync.getHandle()) {
+                App.showToast('请先选择本地同步文件', 'error');
+                return;
+            }
+            await LocalSync.syncPull(false);
+            updateLocalSyncStatus();
+        });
+
+        // 初始化显示（LocalSync.init() 可能还在异步跑，下一帧再刷新）
+        setTimeout(updateLocalSyncStatus, 50);
     },
 
     /**

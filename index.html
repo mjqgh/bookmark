@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=70">
+    <link rel="stylesheet" href="css/style.css?v=75">
 </head>
 <body>
     <div class="app">
@@ -73,112 +73,164 @@
     
     <!-- 配置弹窗 -->
     <div class="modal" id="configModal">
-        <div class="modal-content">
+        <div class="modal-content config-modal-content">
             <div class="modal-header">
                 <h3 data-i18n="configTitle">配置</h3>
                 <button class="modal-close" data-close="configModal">×</button>
             </div>
-            <div class="modal-body">
-                <div class="config-section">
-                    <h4 data-i18n="importSection">导入</h4>
-                    <div class="config-options">
-                        <button class="btn btn-primary" id="btnImportFile" data-i18n="importFile">从本地文件导入</button>
-                        <input type="file" id="importFileInput" accept=".txt,.html,.htm" style="display:none">
-                    </div>
-                </div>
-                <div class="config-section cloud-sync-section">
-                    <h4>☁️ <span data-i18n="cloudSyncTitle">云端自动同步</span></h4>
-                    <div class="config-options">
-                        <label class="cloud-sync-enable">
-                            <input type="checkbox" id="cloudSyncEnabled">
-                            <span data-i18n="cloudSyncEnabled">启用拉取</span>
-                        </label>
-                        <label class="cloud-sync-enable">
-                            <input type="checkbox" id="cloudSyncTwoWay">
-                            <span data-i18n="cloudSyncTwoWay">启用双向同步</span>
-                        </label>
-                    </div>
-                    <div class="config-options">
-                        <label class="cloud-field">
-                            <span class="cloud-label" data-i18n="cloudProvider">存储源</span>
-                            <select id="cloudProvider" class="text-input cloud-input">
-                                <option value="github">GitHub</option>
-                                <option value="webdav">WebDAV（坚果云/Nextcloud）</option>
-                                <option value="qiniu">七牛云 / 阿里云 OSS</option>
-                                <option value="custom" data-i18n="cloudProviderCustom">其他（自定义 URL）</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="config-options">
-                        <label class="cloud-field">
-                            <span class="cloud-label" data-i18n="cloudRawUrl">txt 文件 URL</span>
-                            <input type="text" id="cloudRawUrl" class="text-input cloud-input" placeholder="https://raw.githubusercontent.com/用户名/仓库/main/bookmarks.txt">
-                        </label>
-                    </div>
-                    <div class="config-options" id="githubTokenRow" style="display:none;">
-                        <label class="cloud-field">
-                            <span class="cloud-label" data-i18n="cloudGithubToken">GitHub 令牌</span>
-                            <input type="password" id="cloudGithubToken" class="text-input cloud-input" placeholder="ghp_xxxxxxxxxxxx（仅本机存储，直连 GitHub）" autocomplete="off">
-                        </label>
-                        <div class="cloud-token-hint" data-i18n="cloudTokenHint">
-                            需勾选 repo 权限的个人访问令牌。<a href="https://github.com/settings/tokens/new?scopes=repo&description=%E6%94%B6%E8%97%8F%E5%A4%B9%E5%90%8C%E6%AD%A5" target="_blank" rel="noopener">点此生成令牌 →</a> 令牌仅保存在本设备浏览器，不会经过任何第三方服务器。
+            <!-- 标签栏 -->
+            <div class="config-tabs">
+                <div class="config-tab active" data-tab="import-export" data-i18n="tabImportExport">导入/导出</div>
+                <div class="config-tab" data-tab="cloud-sync" data-i18n="tabCloudSync">云端同步</div>
+                <div class="config-tab" data-tab="local-sync" data-i18n="tabLocalSync">本地同步</div>
+                <div class="config-tab" data-tab="other" data-i18n="tabOther">其他</div>
+            </div>
+            <div class="modal-body config-modal-body">
+                <!-- Tab 1: 导入/导出 -->
+                <div class="config-tab-pane active" data-pane="import-export">
+                    <div class="config-section">
+                        <h4 data-i18n="importSection">导入</h4>
+                        <div class="config-options">
+                            <button class="btn btn-primary btn-block" id="btnImportFile" data-i18n="importFile">从本地文件导入（支持 txt / html）</button>
+                            <input type="file" id="importFileInput" accept=".txt,.html,.htm" style="display:none">
                         </div>
                     </div>
-                    <div class="config-options">
-                        <label class="cloud-field">
-                            <span class="cloud-label" data-i18n="cloudInterval">拉取间隔</span>
-                            <select id="cloudInterval" class="text-input cloud-input">
-                                <option value="5">5 分钟</option>
-                                <option value="15" selected>15 分钟</option>
-                                <option value="30">30 分钟</option>
-                                <option value="60">1 小时</option>
-                                <option value="0" data-i18n="cloudIntervalManual">仅手动拉取</option>
-                            </select>
-                        </label>
+                    <div class="config-section">
+                        <h4 data-i18n="exportSection">导出</h4>
+                        <div class="config-options export-options">
+                            <button class="btn btn-primary btn-block" id="btnExportTxt" data-i18n="exportTxt">导出为 txt</button>
+                            <button class="btn btn-default btn-block" id="btnExportHtml" data-i18n="exportHtml">导出为 html (浏览器书签格式)</button>
+                        </div>
                     </div>
-                    <div class="config-options cloud-status-row">
-                        <span class="cloud-status" id="cloudStatus">
-                            <span data-i18n="cloudNeverSynced">从未同步</span>
-                        </span>
+                    <div class="config-section">
+                        <h4 data-i18n="formatSection">文件格式示例</h4>
+                        <pre class="format-example">#一级收藏夹
+##二级收藏夹
+###三级收藏夹
+收藏页,https://www.baidu.com/</pre>
+                    </div>
+                </div>
+
+                <!-- Tab 2: 云端同步 -->
+                <div class="config-tab-pane" data-pane="cloud-sync">
+                    <div class="config-section cloud-sync-section">
+                        <h4>☁️ <span data-i18n="cloudSyncTitle">云端自动同步</span></h4>
+                        <div class="config-options">
+                            <label class="cloud-sync-enable">
+                                <input type="checkbox" id="cloudSyncEnabled">
+                                <span data-i18n="cloudSyncEnabled">启用拉取</span>
+                            </label>
+                            <label class="cloud-sync-enable">
+                                <input type="checkbox" id="cloudSyncTwoWay">
+                                <span data-i18n="cloudSyncTwoWay">启用双向同步</span>
+                            </label>
+                        </div>
+                        <div class="config-options">
+                            <label class="cloud-field">
+                                <span class="cloud-label" data-i18n="cloudProvider">存储源</span>
+                                <select id="cloudProvider" class="text-input cloud-input">
+                                    <option value="github">GitHub</option>
+                                    <option value="webdav">WebDAV（坚果云/Nextcloud）</option>
+                                    <option value="qiniu">七牛云 / 阿里云 OSS</option>
+                                    <option value="custom" data-i18n="cloudProviderCustom">其他（自定义 URL）</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="config-options">
+                            <label class="cloud-field">
+                                <span class="cloud-label" data-i18n="cloudRawUrl">txt 文件 URL</span>
+                                <input type="text" id="cloudRawUrl" class="text-input cloud-input" placeholder="https://raw.githubusercontent.com/用户名/仓库/main/bookmarks.txt">
+                            </label>
+                        </div>
+                        <div class="config-options" id="githubTokenRow">
+                            <label class="cloud-field">
+                                <span class="cloud-label" data-i18n="cloudGithubToken">GitHub 令牌</span>
+                                <input type="password" id="cloudGithubToken" class="text-input cloud-input" placeholder="ghp_xxxxxxxxxxxx（仅本机存储，直连 GitHub）" autocomplete="off">
+                            </label>
+                            <div class="cloud-token-hint" data-i18n="cloudTokenHint">
+                                需勾选 repo 权限的个人访问令牌。<a href="https://github.com/settings/tokens/new?scopes=repo&description=%E6%94%B6%E8%97%8F%E5%A4%B9%E5%90%8C%E6%AD%A5" target="_blank" rel="noopener">点此生成令牌 →</a> 令牌仅保存在本设备浏览器，不会经过任何第三方服务器。
+                            </div>
+                        </div>
+                        <div class="config-options">
+                            <label class="cloud-field">
+                                <span class="cloud-label" data-i18n="cloudInterval">拉取间隔</span>
+                                <select id="cloudInterval" class="text-input cloud-input">
+                                    <option value="5">5 分钟</option>
+                                    <option value="15" selected>15 分钟</option>
+                                    <option value="30">30 分钟</option>
+                                    <option value="60">1 小时</option>
+                                    <option value="0" data-i18n="cloudIntervalManual">仅手动拉取</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="config-options cloud-status-row">
+                            <span class="cloud-status" id="cloudStatus">
+                                <span data-i18n="cloudNeverSynced">从未同步</span>
+                            </span>
+                        </div>
                         <div class="cloud-btn-group">
                             <button class="btn btn-primary" id="cloudSaveConfig" data-i18n="cloudSave">保存配置</button>
                             <button class="btn btn-default" id="cloudUpload" data-i18n="cloudUpload">立即上传</button>
                             <button class="btn btn-default" id="cloudTestFetch" data-i18n="cloudTestFetch">立即拉取</button>
                         </div>
-                    </div>
-                    <div class="cloud-hint" data-i18n="cloudHint">
-                        首次使用：在 GitHub 新建仓库 + 上传 txt → 打开 raw 文件 → 复制 URL 粘贴到上面。数据完全由你自己掌握，我们不会存储你的任何数据。
-                    </div>
-                </div>
-                <div class="config-section">
-                    <h4 data-i18n="exportSection">导出</h4>
-                    <div class="config-options export-options">
-                        <button class="btn btn-primary" id="btnExportTxt" data-i18n="exportTxt">导出为 txt</button>
-                        <button class="btn btn-default" id="btnExportHtml" data-i18n="exportHtml">导出为 html (浏览器书签格式)</button>
+                        <div class="cloud-hint" data-i18n="cloudHint">
+                            首次使用：在 GitHub 新建仓库 + 上传 txt → 打开 raw 文件 → 复制 URL 粘贴到上面。数据完全由你自己掌握，我们不会存储你的任何数据。
+                        </div>
                     </div>
                 </div>
-                <div class="config-section">
-                    <h4 data-i18n="trash">回收站</h4>
-                    <button class="btn btn-default" id="btnTrash" data-i18n="openTrash">打开回收站</button>
-                </div>
-                <div class="config-section">
-                    <h4 data-i18n="defaultSearchEngine">默认搜索引擎</h4>
-                    <div class="config-options">
-                        <select id="searchEngineSelect" class="text-input" style="max-width:320px">
-                            <option value="baidu">百度 (Baidu)</option>
-                            <option value="bing">必应 (Bing)</option>
-                            <option value="google">Google</option>
-                            <option value="sogou">搜狗 (Sogou)</option>
-                        </select>
-                        <span class="config-hint" data-i18n="searchEngineHint">网络搜索的默认引擎，也可在搜索框长按 🌐 按钮临时切换</span>
+
+                <!-- Tab 3: 本地同步 -->
+                <div class="config-tab-pane" data-pane="local-sync">
+                    <div class="config-section">
+                        <h4>本地同步</h4>
+                        <label class="local-sync-enable">
+                            <input type="checkbox" id="localSyncEnabled">
+                            <span>启用本地双向同步</span>
+                        </label>
+                        <div class="local-sync-warning">（需要勾选才生效，当启用了【云端同步】则自动关闭本地同步）</div>
+                        <div class="config-options">
+                            <button class="btn btn-primary btn-block" id="btnLocalSyncFile">选择本地同步文件（仅支持txt文件，初始可为空）</button>
+                        </div>
+                        <div class="local-sync-status" id="localSyncStatus">未选择文件</div>
+                        <div class="config-options">
+                            <label class="cloud-field">
+                                <span class="cloud-label">自动同步间隔</span>
+                                <select id="localSyncInterval" class="text-input cloud-input">
+                                    <option value="5">5 分钟</option>
+                                    <option value="15" selected>15 分钟</option>
+                                    <option value="30">30 分钟</option>
+                                    <option value="60">1 小时</option>
+                                    <option value="0">仅手动</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="cloud-btn-group">
+                            <button class="btn btn-primary" id="localSyncSave">保存配置</button>
+                            <button class="btn btn-default" id="localSyncForceWrite">立即修改</button>
+                            <button class="btn btn-default" id="localSyncPull">立即拉取</button>
+                        </div>
+                        <div class="local-sync-status" id="localSyncLast">上次同步：从未</div>
                     </div>
                 </div>
-                <div class="config-section">
-                    <h4 data-i18n="formatSection">文件格式说明</h4>
-                    <pre class="format-example">#工作类
-##在线工具
-###在线PS
-Photopea,https://www.photopea.com/</pre>
+
+                <!-- Tab 4: 其他 -->
+                <div class="config-tab-pane" data-pane="other">
+                    <div class="config-section">
+                        <h4 data-i18n="trash">回收站</h4>
+                        <button class="btn btn-default" id="btnTrash" data-i18n="openTrash">打开回收站</button>
+                    </div>
+                    <div class="config-section">
+                        <h4 data-i18n="defaultSearchEngine">默认搜索引擎</h4>
+                        <div class="config-options">
+                            <select id="searchEngineSelect" class="text-input" style="max-width:320px">
+                                <option value="baidu">百度 (Baidu)</option>
+                                <option value="bing">必应 (Bing)</option>
+                                <option value="google">Google</option>
+                                <option value="sogou">搜狗 (Sogou)</option>
+                            </select>
+                            <span class="config-hint" data-i18n="searchEngineHint">网络搜索的默认引擎，也可在搜索框长按 🌐 按钮临时切换</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -412,6 +464,7 @@ Photopea,https://www.photopea.com/</pre>
     <script src="js/config.js?v=10"></script>
     <script src="js/cloudSync.js?v=16"></script>
     <script src="js/trash.js?v=2"></script>
-    <script src="js/app.js?v=34"></script>
+    <script src="js/localSync.js?v=1"></script>
+    <script src="js/app.js?v=36"></script>
 </body>
 </html>
