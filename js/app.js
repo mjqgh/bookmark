@@ -289,8 +289,8 @@ const App = {
         this.initCloudSyncUI();
         this.updateSyncBtnVisibility();
 
-        // 本地同步（异步：需要等 IndexedDB 就绪）
-        LocalSync.init();
+        // 本地同步（异步：需要等 IndexedDB 就绪；完成后刷新同步按钮模式）
+        LocalSync.init().then(() => this.updateSyncBtnVisibility());
 
         // 配置弹窗：标签页切换 + 本地同步 UI 绑定
         this.initConfigTabs();
@@ -559,6 +559,8 @@ const App = {
                     LocalSync._saveConfig({ enabled: false });
                     const lsCb = document.getElementById('localSyncEnabled');
                     if (lsCb) lsCb.checked = false;
+                    // 本地被立即关闭，同步按钮模式需立刻刷新（云端配置待"保存配置"后再生效）
+                    App.updateSyncBtnVisibility();
                     App.showToast('已启用云端同步，本地同步已自动关闭', 'info');
                 }
             }
@@ -714,11 +716,13 @@ const App = {
             localSyncLast.textContent = '上次同步：' + LocalSync.formatLastSync();
             // 启用 checkbox 需要已有文件绑定
             localSyncEnabled.disabled = !handle;
+            // 本地同步状态变化 → 同步刷新搜索栏旁的立即同步按钮（模式/可见性）
+            App.updateSyncBtnVisibility();
         };
 
         // 勾选启用 → 互斥
         localSyncEnabled.addEventListener('change', () => {
-            if (!handle) {
+            if (!LocalSync.getHandle()) {
                 localSyncEnabled.checked = false;
                 App.showToast('请先选择本地同步文件', 'error');
                 return;
@@ -904,39 +908,68 @@ const App = {
     },
 
     /**
-     * 更新立即同步按钮的可见性
-     * 仅当配置了云同步（自动拉取或双向同步，且有 fetchUrl）时显示
+     * 更新立即同步按钮的可见性 + 模式
+     * 优先级：本地同步启用 → 本地模式；否则云端同步配置 → 云端模式；都无 → 隐藏
+     * 本地模式：要求 enabled 且已绑定文件 handle
+     * 云端模式：要求 fetchUrl 且 enabled/twoWay
      */
     updateSyncBtnVisibility() {
         const btn = document.getElementById('btnSyncNow');
         if (!btn) return;
-        const cfg = CloudSync._config;
-        const visible = !!(cfg && cfg.fetchUrl && (cfg.enabled || cfg.twoWay));
-        btn.hidden = !visible;
+
+        // 判断当前同步模式：'local' | 'cloud' | null
+        let mode = null;
+        try {
+            const localCfg = LocalSync.getConfig();
+            if (localCfg && localCfg.enabled && LocalSync.getHandle()) {
+                mode = 'local';
+            } else {
+                const cfg = CloudSync._config;
+                if (cfg && cfg.fetchUrl && (cfg.enabled || cfg.twoWay)) {
+                    mode = 'cloud';
+                }
+            }
+        } catch (e) {
+            // LocalSync 尚未初始化（极少数时序）→ 退回只看云端
+            const cfg = CloudSync._config;
+            if (cfg && cfg.fetchUrl && (cfg.enabled || cfg.twoWay)) mode = 'cloud';
+        }
+
+        btn.hidden = !mode;
+        btn.dataset.syncMode = mode || '';
+        btn.title = mode === 'local'
+            ? '立即与本地文件同步'
+            : (mode === 'cloud' ? '立即云端同步' : '');
+
         // 非同步中、非成功态时恢复默认 SVG
-        if (visible && !btn.classList.contains('syncing') && !btn.classList.contains('success')) {
+        if (mode && !btn.classList.contains('syncing') && !btn.classList.contains('success')) {
             btn.innerHTML = this.SVG_SYNC;
         }
     },
 
     /**
-     * 立即同步按钮：转圈 → 执行 syncNow → 成功显示绿勾 2s 恢复，失败立即恢复
+     * 立即同步按钮：转圈 → 根据当前模式调用 LocalSync/CloudSync → 成功绿勾 2s，失败立即恢复
      */
     async handleSyncNow() {
         const btn = document.getElementById('btnSyncNow');
         if (!btn || btn.classList.contains('syncing')) return;
+        const mode = btn.dataset.syncMode || 'cloud';
+
+        // 本地模式：若文件权限丢失（页面重载后回到 prompt），syncNow 内部会在用户手势里重新请求授权
         // 立刻进入转圈态
         btn.classList.add('syncing');
         btn.innerHTML = this.SVG_SYNC;
         let ok = false;
         try {
-            const result = await CloudSync.syncNow();
+            const result = mode === 'local'
+                ? await LocalSync.syncNow()
+                : await CloudSync.syncNow();
             ok = !!(result && result.ok);
         } catch (e) {
             console.warn('[SyncNow] error:', e);
             ok = false;
         } finally {
-            // 成功 → 绿勾 2s；失败 → 立即恢复（错误 toast 已由 syncNow 弹出）
+            // 成功 → 绿勾 2s；失败 → 立即恢复（错误 toast 已由各模块弹出）
             btn.classList.remove('syncing');
             if (ok) {
                 btn.classList.add('success');
@@ -947,6 +980,11 @@ const App = {
                 }, 2000);
             } else {
                 btn.innerHTML = this.SVG_SYNC;
+            }
+            // 本地模式同步后，若配置弹窗开着，顺手刷新"上次同步"文案
+            if (mode === 'local') {
+                const lastEl = document.getElementById('localSyncLast');
+                if (lastEl) lastEl.textContent = '上次同步：' + LocalSync.formatLastSync();
             }
         }
     },
