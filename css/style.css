@@ -1437,8 +1437,7 @@ body.drag-locked .drag-handle {
 
 /* ==================== 云端同步区块 ==================== */
 .cloud-sync-section {
-    border-top: 1px dashed #e0e0e0;
-    padding-top: 16px;
+    padding-top: 8px;
 }
 
 .cloud-sync-enable {
