@@ -1299,6 +1299,12 @@ body.drag-locked .drag-handle {
     border-bottom: 1px solid #e0e0e0;
     background: #fafafa;
     flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.config-tabs::-webkit-scrollbar {
+    display: none;
 }
 .config-tab {
     padding: 10px 18px;
@@ -1309,6 +1315,8 @@ body.drag-locked .drag-handle {
     border-bottom: 2px solid transparent;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
     user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 .config-tab:hover {
     color: #333;
@@ -1939,6 +1947,19 @@ body.drag-locked .drag-handle {
 
 /* ==================== 响应式（移动端：仅展示左侧栏） ==================== */
 @media (max-width: 768px) {
+    /* 配置弹窗 tab：强制单行不换行，横向可滚 */
+    .config-tab {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    .config-modal-content {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        min-height: 0;
+        max-height: 92vh;
+    }
+
     .app {
         flex-direction: row;
     }
