@@ -1955,8 +1955,8 @@ body.drag-locked .drag-handle {
     .config-modal-content {
         width: 100%;
         max-width: 100%;
-        height: auto;
-        min-height: 0;
+        height: 78vh;
+        min-height: 380px;
         max-height: 92vh;
     }
 
