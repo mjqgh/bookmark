@@ -548,10 +548,14 @@ const App = {
 
         providerSel.addEventListener('change', syncProviderUI);
 
-        // 二选一互斥：勾选一个自动取消另一个；同时启用云端 → 自动关闭本地同步
-        const onCloudSyncCheck = () => {
-            if (enabledCb.checked) twoWayCb.checked = false;
-            if (twoWayCb.checked) enabledCb.checked = false;
+        // 二选一互斥：只处理触发 change 的那个 checkbox，避免两边互相抵消
+        // 勾 pull → 取消 twoWay；勾 twoWay → 取消 pull；取消时不动另一个
+        const onCloudSyncCheck = (e) => {
+            if (e.target === enabledCb) {
+                if (enabledCb.checked) twoWayCb.checked = false;
+            } else if (e.target === twoWayCb) {
+                if (twoWayCb.checked) enabledCb.checked = false;
+            }
             // 云端启用 → 本地同步自动关闭
             if (enabledCb.checked || twoWayCb.checked) {
                 const localCfg = LocalSync.getConfig();
