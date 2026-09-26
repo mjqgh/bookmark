@@ -45,6 +45,20 @@ const App = {
             tabCloudSync: '云端同步',
             tabLocalSync: '本地同步',
             tabOther: '其他',
+            tabAppearance: '外观',
+            sizePreset: '预设档位',
+            presetCompact: '紧凑',
+            presetStandard: '标准',
+            presetRelaxed: '宽松',
+            folderHot: '收藏夹热区',
+            folderIcon: '收藏夹图标',
+            folderFont: '收藏夹文字',
+            bmHot: '收藏页热区',
+            bmIcon: '收藏页图标',
+            bmFont: '收藏页文字',
+            appearanceHint: '热区 = 行的可点击高度，与图标/文字大小独立调节；左侧树与右侧列表的收藏页联动。设置仅保存在本机浏览器。',
+            appearanceReset: '恢复标准',
+            appearanceResetToast: '已恢复标准尺寸',
             importSection: '导入',
             importFile: '从本地文件导入（支持 txt / html）',
             cloudSyncTitle: '云端自动同步',
@@ -145,6 +159,20 @@ const App = {
             tabCloudSync: 'Cloud Sync',
             tabLocalSync: 'Local Sync',
             tabOther: 'Other',
+            tabAppearance: 'Appearance',
+            sizePreset: 'Preset',
+            presetCompact: 'Compact',
+            presetStandard: 'Standard',
+            presetRelaxed: 'Relaxed',
+            folderHot: 'Folder hit area',
+            folderIcon: 'Folder icon',
+            folderFont: 'Folder text',
+            bmHot: 'Bookmark hit area',
+            bmIcon: 'Bookmark icon',
+            bmFont: 'Bookmark text',
+            appearanceHint: 'Hit area = clickable row height, independent from icon/text size. Tree and list bookmarks share the same values. Stored in this browser only.',
+            appearanceReset: 'Reset to Standard',
+            appearanceResetToast: 'Appearance reset to standard',
             importSection: 'Import',
             importFile: 'Import from File (txt / html)',
             cloudSyncTitle: 'Cloud Auto Sync',
@@ -235,6 +263,9 @@ const App = {
 
         // 拖拽排序总开关（默认解锁；持久化到 localStorage）
         this.dragUnlocked = localStorage.getItem('dragUnlocked') !== '0';
+
+        // 应用外观尺寸设置（收藏夹/收藏页热区与图标文字，仅存本机；在首次渲染前应用避免闪烁）
+        this.applyUiSizeSettings(this.getUiSizeSettings());
         
         // 加载语言设置
         this.currentLanguage = this.data.settings?.language || 'zh-CN';
@@ -294,6 +325,9 @@ const App = {
 
         // 配置弹窗：标签页切换 + 本地同步 UI 绑定
         this.initConfigTabs();
+
+        // 配置弹窗：外观尺寸调节（预设 + 滑块）
+        this.initAppearanceUI();
         
         // 窗口宽度跨越 768px 阈值时，保持用户上次的展开状态，
         // 只确保被选中的文件夹本身及父路径可见（不至于切换视口后找不到当前选中项）
@@ -654,6 +688,124 @@ const App = {
 
         // 初始填充一次（首次打开配置前就有配置的情况）
         fillForm();
+    },
+
+    /**
+     * 外观尺寸设置（收藏夹/收藏页的热区与图标/文字）
+     * 仅存本机 localStorage（不进 data.settings，避免随云端/本地同步跨设备串味）
+     * 热区走 min-height（行高），与图标/文字大小完全解耦
+     */
+    UI_SIZE_KEY: 'ui_size_settings',
+    UI_SIZE_DEFAULTS: { preset: 'standard', folderHot: 46, folderIcon: 14, folderFont: 13, bmHot: 56, bmIcon: 32, bmFont: 14 },
+    UI_SIZE_PRESETS: {
+        compact:  { folderHot: 38, folderIcon: 12, folderFont: 12, bmHot: 46, bmIcon: 26, bmFont: 13 },
+        standard: { folderHot: 46, folderIcon: 14, folderFont: 13, bmHot: 56, bmIcon: 32, bmFont: 14 },
+        relaxed:  { folderHot: 56, folderIcon: 17, folderFont: 15, bmHot: 68, bmIcon: 40, bmFont: 16 }
+    },
+
+    getUiSizeSettings() {
+        const s = { ...this.UI_SIZE_DEFAULTS };
+        try {
+            const raw = localStorage.getItem(this.UI_SIZE_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw);
+                // 数值字段：只接受合法数值，脏数据静默回退默认
+                for (const k of Object.keys(this.UI_SIZE_DEFAULTS)) {
+                    if (k === 'preset') continue;  // preset 是字符串，单独处理
+                    if (typeof saved[k] === 'number' && isFinite(saved[k])) s[k] = saved[k];
+                }
+                // preset 走白名单（含手动微调后的 custom），非法值保持默认 standard
+                if (['compact', 'standard', 'relaxed', 'custom'].includes(saved.preset)) {
+                    s.preset = saved.preset;
+                }
+            }
+        } catch (e) { /* 解析失败用默认值 */ }
+        return s;
+    },
+
+    applyUiSizeSettings(s) {
+        const root = document.documentElement.style;
+        root.setProperty('--folder-row-h', s.folderHot + 'px');
+        root.setProperty('--folder-icon', s.folderIcon + 'px');
+        root.setProperty('--folder-font', s.folderFont + 'px');
+        root.setProperty('--bm-row-h', s.bmHot + 'px');
+        root.setProperty('--bm-icon', s.bmIcon + 'px');
+        root.setProperty('--bm-font', s.bmFont + 'px');
+    },
+
+    saveUiSizeSettings(s) {
+        localStorage.setItem(this.UI_SIZE_KEY, JSON.stringify(s));
+        this.applyUiSizeSettings(s);
+    },
+
+    /**
+     * 配置弹窗「外观」tab：预设档位 + 高级滑块
+     */
+    initAppearanceUI() {
+        const sliders = [
+            { id: 'sizeFolderHot',  key: 'folderHot' },
+            { id: 'sizeFolderIcon', key: 'folderIcon' },
+            { id: 'sizeFolderFont', key: 'folderFont' },
+            { id: 'sizeBmHot',      key: 'bmHot' },
+            { id: 'sizeBmIcon',     key: 'bmIcon' },
+            { id: 'sizeBmFont',     key: 'bmFont' }
+        ];
+        const seg = document.getElementById('sizePresetSeg');
+        if (!seg) return;
+
+        // 预设标记：custom 时没有任何按钮匹配，全部不亮
+        const markPreset = (preset) => {
+            seg.querySelectorAll('button').forEach(b =>
+                b.classList.toggle('active', b.dataset.preset === preset));
+        };
+        const refresh = () => {
+            const s = this.getUiSizeSettings();
+            sliders.forEach(({ id, key }) => {
+                const el = document.getElementById(id);
+                const val = document.getElementById(id + 'Val');
+                if (el) el.value = s[key];
+                if (val) val.textContent = s[key] + 'px';
+            });
+            markPreset(s.preset);
+        };
+
+        // 滑块拖动：实时应用 + 存本机；手动微调后预设视为自定义
+        sliders.forEach(({ id, key }) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', () => {
+                const s = this.getUiSizeSettings();
+                s[key] = parseInt(el.value, 10);
+                s.preset = 'custom';
+                this.saveUiSizeSettings(s);
+                const val = document.getElementById(id + 'Val');
+                if (val) val.textContent = s[key] + 'px';
+                markPreset('custom');
+            });
+        });
+
+        // 预设按钮：整组套用
+        seg.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-preset]');
+            if (!btn) return;
+            const preset = btn.dataset.preset;
+            const values = this.UI_SIZE_PRESETS[preset];
+            if (!values) return;
+            this.saveUiSizeSettings({ preset, ...values });
+            refresh();
+        });
+
+        // 恢复标准
+        const btnReset = document.getElementById('btnSizeReset');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                this.saveUiSizeSettings({ preset: 'standard', ...this.UI_SIZE_PRESETS.standard });
+                refresh();
+                this.showToast(this.t('appearanceResetToast'), 'success');
+            });
+        }
+
+        refresh();
     },
 
     /**

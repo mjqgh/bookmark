@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收藏夹 - 我的书签</title>
-    <link rel="stylesheet" href="css/style.css?v=78">
+    <link rel="stylesheet" href="css/style.css?v=79">
 </head>
 <body>
     <div class="app">
@@ -83,6 +83,7 @@
                 <div class="config-tab active" data-tab="import-export" data-i18n="tabImportExport">导入/导出</div>
                 <div class="config-tab" data-tab="cloud-sync" data-i18n="tabCloudSync">云端同步</div>
                 <div class="config-tab" data-tab="local-sync" data-i18n="tabLocalSync">本地同步</div>
+                <div class="config-tab" data-tab="appearance" data-i18n="tabAppearance">外观</div>
                 <div class="config-tab" data-tab="other" data-i18n="tabOther">其他</div>
             </div>
             <div class="modal-body config-modal-body">
@@ -213,7 +214,60 @@
                     </div>
                 </div>
 
-                <!-- Tab 4: 其他 -->
+                <!-- Tab 4: 外观 -->
+                <div class="config-tab-pane" data-pane="appearance">
+                    <div class="config-section">
+                        <h4 data-i18n="tabAppearance">外观</h4>
+                        <div class="config-options">
+                            <label class="cloud-field">
+                                <span class="cloud-label" data-i18n="sizePreset">预设档位</span>
+                                <div class="preset-seg" id="sizePresetSeg">
+                                    <button type="button" data-preset="compact" data-i18n="presetCompact">紧凑</button>
+                                    <button type="button" data-preset="standard" data-i18n="presetStandard">标准</button>
+                                    <button type="button" data-preset="relaxed" data-i18n="presetRelaxed">宽松</button>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="config-options">
+                            <div class="size-slider-row">
+                                <label data-i18n="folderHot">收藏夹热区</label>
+                                <input type="range" id="sizeFolderHot" min="34" max="72" step="2">
+                                <span class="size-val" id="sizeFolderHotVal"></span>
+                            </div>
+                            <div class="size-slider-row">
+                                <label data-i18n="folderIcon">收藏夹图标</label>
+                                <input type="range" id="sizeFolderIcon" min="10" max="24" step="1">
+                                <span class="size-val" id="sizeFolderIconVal"></span>
+                            </div>
+                            <div class="size-slider-row">
+                                <label data-i18n="folderFont">收藏夹文字</label>
+                                <input type="range" id="sizeFolderFont" min="11" max="20" step="1">
+                                <span class="size-val" id="sizeFolderFontVal"></span>
+                            </div>
+                            <div class="size-slider-row">
+                                <label data-i18n="bmHot">收藏页热区</label>
+                                <input type="range" id="sizeBmHot" min="40" max="96" step="2">
+                                <span class="size-val" id="sizeBmHotVal"></span>
+                            </div>
+                            <div class="size-slider-row">
+                                <label data-i18n="bmIcon">收藏页图标</label>
+                                <input type="range" id="sizeBmIcon" min="20" max="56" step="2">
+                                <span class="size-val" id="sizeBmIconVal"></span>
+                            </div>
+                            <div class="size-slider-row">
+                                <label data-i18n="bmFont">收藏页文字</label>
+                                <input type="range" id="sizeBmFont" min="11" max="20" step="1">
+                                <span class="size-val" id="sizeBmFontVal"></span>
+                            </div>
+                        </div>
+                        <div class="config-hint" data-i18n="appearanceHint">热区 = 行的可点击高度，与图标/文字大小独立调节；左侧树与右侧列表的收藏页联动。设置仅保存在本机浏览器。</div>
+                        <div class="cloud-btn-group">
+                            <button class="btn btn-default" id="btnSizeReset" data-i18n="appearanceReset">恢复标准</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: 其他 -->
                 <div class="config-tab-pane" data-pane="other">
                     <div class="config-section">
                         <h4 data-i18n="trash">回收站</h4>
@@ -465,6 +519,6 @@
     <script src="js/cloudSync.js?v=16"></script>
     <script src="js/trash.js?v=2"></script>
     <script src="js/localSync.js?v=1"></script>
-    <script src="js/app.js?v=39"></script>
+    <script src="js/app.js?v=41"></script>
 </body>
 </html>

@@ -1,3 +1,16 @@
+/* ==================== 可调外观尺寸（配置 → 外观）====================
+   收藏夹/收藏页的「热区（行高）」与「图标/文字」解耦，全部走 CSS 变量；
+   此处为默认值（= 标准 预设），用户调整后由 JS 写入 <html> 内联样式覆盖。
+   两处收藏页（左侧树内联 + 右侧列表）共用 --bm-* 变量联动；桌面/移动不区分。 */
+:root {
+    --folder-row-h: 46px;  /* 收藏夹行热区（行高） */
+    --folder-icon: 14px;   /* 收藏夹图标 📁 */
+    --folder-font: 13px;   /* 收藏夹文字 */
+    --bm-row-h: 56px;      /* 收藏页行热区（右侧列表卡片高度，树内联按比例缩小） */
+    --bm-icon: 32px;       /* 收藏页图标（favicon） */
+    --bm-font: 14px;       /* 收藏页文字（标题；URL/路径联动缩小） */
+}
+
 /* ==================== 基础样式 ==================== */
 * {
     margin: 0;
@@ -427,7 +440,8 @@ body.resizing .resizer {
 .tree-node-header {
     display: flex;
     align-items: center;
-    padding: 9px 12px 9px 8px;  /* 左 8px：让出 4px 粗条 + 4px 间隙；手柄在文档流内自带宽度 */
+    min-height: var(--folder-row-h);  /* 热区 = 行高，可在 配置→外观 调节；flex 垂直居中 */
+    padding: 0 12px 0 8px;  /* 左 8px：让出 4px 粗条 + 4px 间隙；手柄在文档流内自带宽度 */
     cursor: pointer;
     position: relative;
     transition: background 0.15s;
@@ -566,11 +580,19 @@ body.drag-locked .drag-handle {
 /* 文件夹图标 */
 .tree-icon {
     margin-right: 6px;
-    font-size: 14px;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     line-height: 1;
+}
+
+/* 收藏夹行图标大小可调（配置 → 外观）；树内联收藏页的 📄 图标跟随收藏页图标缩放 */
+.tree-node-header > .tree-icon {
+    font-size: var(--folder-icon);
+}
+
+.tree-bookmark-item .tree-icon {
+    font-size: calc(var(--bm-icon) / 2);
 }
 
 .tree-icon.folder {
@@ -587,7 +609,7 @@ body.drag-locked .drag-handle {
 
 /* 文件夹名称 */
 .tree-label {
-    font-size: 13px;
+    font-size: var(--folder-font);
     color: #333;
     flex: 1;
     white-space: nowrap;
@@ -602,7 +624,7 @@ body.drag-locked .drag-handle {
 
 /* 右侧内联提示文案 - 默认隐藏，仅 hover/选中时显示 */
 .tree-node-meta {
-    font-size: 11px;
+    font-size: calc(var(--folder-font) - 2px);
     color: #aaa;
     flex-shrink: 0;
     margin-left: auto;
@@ -743,7 +765,8 @@ body.drag-locked .drag-handle {
 .tree-bookmark-item {
     display: flex;
     align-items: center;
-    padding: 9px 12px 9px 8px;  /* 左 8px 与 .tree-node-header 一致，卡片内手柄/图标与文件夹行对齐 */
+    min-height: calc(var(--bm-row-h) * 0.75);  /* 热区与右侧收藏页列表联动（0.75 倍：单行 vs 双行卡片） */
+    padding: 0 12px 0 8px;  /* 左 8px 与 .tree-node-header 一致，卡片内手柄/图标与文件夹行对齐 */
     cursor: pointer;
     transition: background 0.12s;
     border-radius: 8px;
@@ -791,8 +814,8 @@ body.drag-locked .drag-handle {
 }
 /* 小 favicon（辅助识别网站），不参与对齐基线 */
 .tree-bookmark-title-favicon {
-    width: 14px;
-    height: 14px;
+    width: calc(var(--bm-icon) / 2);
+    height: calc(var(--bm-icon) / 2);
     flex-shrink: 0;
     margin-right: 6px;
     border-radius: 2px;
@@ -802,14 +825,14 @@ body.drag-locked .drag-handle {
 
 /* favicon 加载失败时的首字母占位 */
 .tree-bookmark-title-favicon-fallback {
-    width: 14px;
-    height: 14px;
+    width: calc(var(--bm-icon) / 2);
+    height: calc(var(--bm-icon) / 2);
     flex-shrink: 0;
     margin-right: 6px;
     border-radius: 2px;
     background: #e0e0e0;
     color: #666;
-    font-size: 9px;
+    font-size: calc(var(--bm-icon) / 3);
     font-weight: 600;
     display: inline-flex;
     align-items: center;
@@ -817,7 +840,7 @@ body.drag-locked .drag-handle {
     line-height: 1;
 }
 .tree-bookmark-title {
-    font-size: 13px;
+    font-size: var(--bm-font);
     color: #333;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -977,7 +1000,8 @@ body.drag-locked .drag-handle {
 .bookmark-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    min-height: var(--bm-row-h);  /* 热区 = 卡片高度，可在 配置→外观 调节 */
+    padding: 0 16px;
     background: #fff;
     border: 1px solid #eee;
     border-radius: 8px;
@@ -1040,15 +1064,15 @@ body.drag-locked .drag-handle {
 }
 
 .bookmark-favicon {
-    width: 32px;
-    height: 32px;
+    width: var(--bm-icon);
+    height: var(--bm-icon);
     border-radius: 50%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    font-size: 14px;
+    font-size: calc(var(--bm-icon) / 2);  /* 首字母占位随图标缩放 */
     font-weight: 500;
     flex-shrink: 0;
     overflow: hidden;
@@ -1066,7 +1090,7 @@ body.drag-locked .drag-handle {
 }
 
 .bookmark-title {
-    font-size: 14px;
+    font-size: var(--bm-font);
     color: #333;
     font-weight: 500;
     margin-bottom: 2px;
@@ -1076,7 +1100,7 @@ body.drag-locked .drag-handle {
 }
 
 .bookmark-url {
-    font-size: 12px;
+    font-size: calc(var(--bm-font) - 2px);
     color: #888;
     white-space: nowrap;
     overflow: hidden;
@@ -1085,7 +1109,7 @@ body.drag-locked .drag-handle {
 
 .bookmark-folder-path {
     margin-top: 2px;
-    font-size: 11px;
+    font-size: calc(var(--bm-font) - 3px);
     color: #6699cc;
     white-space: nowrap;
     overflow: hidden;
@@ -1738,7 +1762,7 @@ body.drag-locked .drag-handle {
 
 /* ==================== 搜索结果的文件夹路径（可点击） ==================== */
 .bookmark-folder-path {
-    font-size: 12px;
+    font-size: calc(var(--bm-font) - 2px);
     color: #999;
     margin-top: 3px;
     line-height: 1.5;
@@ -1939,6 +1963,62 @@ body.drag-locked .drag-handle {
     min-width: 0;
 }
 
+/* ==================== 配置 → 外观（尺寸调节） ==================== */
+/* 预设档位分段按钮 */
+.preset-seg {
+    display: inline-flex;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.preset-seg button {
+    border: none;
+    background: #fff;
+    padding: 6px 16px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    border-right: 1px solid #e5e5e5;
+    transition: background 0.15s;
+}
+.preset-seg button:last-child {
+    border-right: none;
+}
+.preset-seg button:hover {
+    background: #f2f6fb;
+}
+.preset-seg button.active {
+    background: #4a90d9;
+    color: #fff;
+}
+
+/* 滑块行：标签 + range + 数值 */
+.size-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.size-slider-row label {
+    width: 96px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #444;
+}
+.size-slider-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: #4a90d9;
+}
+.size-slider-row .size-val {
+    width: 42px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 12px;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ==================== 移动端内联收藏页样式（桌面端隐藏） ==================== */
 .tree-bookmarks {
     display: none;
@@ -2007,13 +2087,10 @@ body.drag-locked .drag-handle {
         padding: 6px 8px 20px;
     }
     .tree-node-header {
-        padding: 10px 10px 10px 8px;  /* 手柄在文档流内，左内边距只需让出 4px 粗条 */
+        padding: 0 10px 0 8px;  /* 垂直热区由 --folder-row-h 统一控制（配置→外观），与桌面不区分 */
         /* 允许双击触发：禁用浏览器 double-tap-to-zoom 手势，让我们的双击展开逻辑生效；
            仍保留 pan-x/pan-y 滚动能力，不影响手指起点在文件夹行上的滚动 */
         touch-action: manipulation;
-    }
-    .tree-label {
-        font-size: 15px;
     }
 
     /* 移动端：行尾展开箭头加大热区（DOM 顺序：⋮⋮ 行首、箭头行尾，两端一致） */
@@ -2046,12 +2123,9 @@ body.drag-locked .drag-handle {
         opacity: 1 !important;
         visibility: visible !important;
     }
-    /* 移动端略加大 item 高度，便于手指点击；左 padding 8px 与文件夹行 .tree-node-header 一致 */
+    /* 移动端略加大 item 热区外的水平留白；垂直热区由 --bm-row-h 联动控制（配置→外观） */
     .tree-bookmark-item {
-        padding: 10px 10px 10px 8px !important;
-    }
-    .tree-bookmark-title {
-        font-size: 15px;
+        padding: 0 10px 0 8px !important;
     }
     .tree-empty-state {
         padding: 30px 20px;
