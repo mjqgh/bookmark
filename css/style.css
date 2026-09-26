@@ -2019,6 +2019,15 @@ body.drag-locked .drag-handle {
     font-variant-numeric: tabular-nums;
 }
 
+/* 外观面板：预设档位与滑块组之间留出间隔（.config-options 自身只有内部 gap，块间无外边距） */
+[data-pane="appearance"] .config-options + .config-options {
+    margin-top: 20px;
+}
+/* 外观面板：滑块组与下方提示文案之间的间隔（.config-hint 默认无外边距） */
+[data-pane="appearance"] .config-hint {
+    margin-top: 14px;
+}
+
 /* ==================== 移动端内联收藏页样式（桌面端隐藏） ==================== */
 .tree-bookmarks {
     display: none;
