@@ -371,7 +371,7 @@ const Tree = {
                             <span>创建收藏夹</span>
                         </button>
                         <button class="btn btn-default" id="emptyCreateBookmark">
-                            <span>☆</span>
+                            <span><svg class="menu-ico tree-empty-ico"><use href="#ico-star"/></svg></span>
                             <span>创建收藏页</span>
                         </button>
                     </div>
