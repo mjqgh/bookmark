@@ -1967,6 +1967,7 @@ body.drag-locked .drag-handle {
 /* 预设档位分段按钮 */
 .preset-seg {
     display: inline-flex;
+    align-self: flex-start;  /* 宽度收紧到内容，避免在纵向 flex 容器中被拉伸撑满整行 */
     border: 1px solid #dcdfe6;
     border-radius: 8px;
     overflow: hidden;
