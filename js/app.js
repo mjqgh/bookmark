@@ -1303,61 +1303,7 @@ const App = {
         document.getElementById('btnLanguage').addEventListener('click', () => {
             this.toggleLanguage();
         });
-        
-        // 更多操作按钮
-        document.getElementById('btnMore').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const menu = document.getElementById('moreMenu');
-            const rect = e.currentTarget.getBoundingClientRect();
-            menu.style.left = `${rect.left}px`;
-            menu.style.top = `${rect.bottom + 4}px`;
-            menu.classList.toggle('active');
-        });
-        
-        // 编辑文件夹
-        document.getElementById('btnEditFolder').addEventListener('click', () => {
-            document.getElementById('moreMenu').classList.remove('active');
-            if (Tree.selectedFolderId) {
-                Bookmarks.openFolderModal(Tree.selectedFolderId);
-            } else {
-                this.showToast('请先选择一个文件夹', 'error');
-            }
-        });
-        
-        // 删除文件夹
-        document.getElementById('btnDeleteFolder').addEventListener('click', () => {
-            document.getElementById('moreMenu').classList.remove('active');
-            if (Tree.selectedFolderId) {
-                const folder = Tree.findFolder(Tree.selectedFolderId);
-                if (folder) {
-                    const bookmarkCount = Tree.countBookmarks(folder.id);
-                    const subfolderCount = Tree.countSubfolders(folder);
-                    if (confirm(`确定删除"${folder.name}"？\n将移入回收站（保留30天），包含 ${bookmarkCount} 个收藏和 ${subfolderCount} 个子文件夹。`)) {
-                        Tree.deleteFolder(Tree.selectedFolderId);
-                        Storage.save(this.data);
-                        Bookmarks.data = this.data;
-                        const newSel = Tree.selectedFolderId;
-                        if (newSel) {
-                            Tree.selectFolder(newSel);
-                        } else {
-                            Bookmarks.setFolder(null);
-                        }
-                        this.showToast(App.t('deletedToTrash'), 'success');
-                    }
-                }
-            } else {
-                this.showToast('请先选择一个文件夹', 'error');
-            }
-        });
-        
-        // 关闭下拉菜单（点击其他地方）
-        document.addEventListener('click', (e) => {
-            const menu = document.getElementById('moreMenu');
-            if (!menu.contains(e.target) && e.target.id !== 'btnMore') {
-                menu.classList.remove('active');
-            }
-        });
-        
+
         // 弹窗关闭按钮
         document.querySelectorAll('[data-close]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1386,7 +1332,6 @@ const App = {
                 document.querySelectorAll('.modal.active').forEach(modal => {
                     modal.classList.remove('active');
                 });
-                document.getElementById('moreMenu').classList.remove('active');
             }
         });
     },

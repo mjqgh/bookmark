@@ -230,11 +230,6 @@ body.resizing .resizer {
     color: #555;
 }
 
-.btn-more {
-    padding: 8px 12px;
-    font-size: 16px;
-}
-
 .btn .icon {
     display: inline-flex;
     align-items: center;
@@ -1571,46 +1566,6 @@ body.drag-locked .drag-handle {
     color: #666;
     white-space: pre-wrap;
     word-break: break-all;
-}
-
-/* ==================== 下拉菜单 ==================== */
-.dropdown-menu {
-    display: none;
-    position: fixed;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    padding: 6px 0;
-    min-width: 140px;
-    z-index: 2000;
-    border: 1px solid #eee;
-}
-
-.dropdown-menu.active {
-    display: block;
-}
-
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    font-size: 13px;
-    color: #333;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-
-.menu-item:hover {
-    background: #f5f5f5;
-}
-
-.menu-danger {
-    color: #e74c3c;
-}
-
-.menu-danger:hover {
-    background: #fee;
 }
 
 /* ==================== 右键菜单 ==================== */

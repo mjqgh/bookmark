@@ -105,6 +105,8 @@ const Tree = {
         }
         
         // 全局：点击/触摸其他地方关闭文件夹右键菜单
+        // 【桌面端】文件夹行/展开箭头的 click 处理器调用了 stopPropagation()，冒泡到不了
+        // document，因此 click 监听必须放在捕获阶段（document 先于目标元素收到事件）。
         // 【移动端】长按弹出菜单后，外部点击可能落在调用了 stopPropagation 的元素上
         // （文件夹/收藏条目），click 永远到不了 document；且部分浏览器长按后不再合成
         // click。故补充 touchstart 监听：触摸起点在菜单外即关闭，不依赖 click 合成。
@@ -114,7 +116,7 @@ const Tree = {
                 this.hideTreeContextMenu();
             }
         };
-        document.addEventListener('click', closeTreeMenuOnOutside);
+        document.addEventListener('click', closeTreeMenuOnOutside, true);
         document.addEventListener('touchstart', closeTreeMenuOnOutside, { passive: true });
         
         // 全局：Escape 关闭文件夹右键菜单

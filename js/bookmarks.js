@@ -145,6 +145,8 @@ const Bookmarks = {
         });
         
         // 全局：点击/触摸其他地方关闭右键菜单
+        // click 用捕获阶段：树内收藏条目、展开箭头等会 stopPropagation()，冒泡阶段收不到；
+        // 捕获阶段 document 先于目标元素执行，配合 contains 判断不会误关菜单内点击。
         // 【移动端】长按弹出菜单后，外部点击可能落在 stopPropagation 元素上或
         // 不合成 click，补充 touchstart 监听兜底（触摸起点在菜单外即关闭）
         const closeBmMenuOnOutside = (e) => {
@@ -153,7 +155,7 @@ const Bookmarks = {
                 this.hideContextMenu();
             }
         };
-        document.addEventListener('click', closeBmMenuOnOutside);
+        document.addEventListener('click', closeBmMenuOnOutside, true);
         document.addEventListener('touchstart', closeBmMenuOnOutside, { passive: true });
         
         // 全局：Escape 键关闭右键菜单
